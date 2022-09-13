@@ -12,9 +12,9 @@ type JsonRpcRequest struct {
 }
 
 type JsonRpcResponse struct {
-	Id     interface{}   `json:"id,omitempty"`
+	Id     interface{}   `json:"id"`
 	Result interface{}   `json:"result"`
-	Error  *JsonRpcError `json:"error"`
+	Error  *JsonRpcError `json:"error,omitempty"`
 }
 
 type JsonRpcError struct {

@@ -60,7 +60,7 @@ func (s *Server) Run(ln net.Listener) error {
 
 	// monitor
 	s.httpServer.GET("metrics", gin.WrapH(promhttp.Handler()))
-
+	gin.SetMode(gin.ReleaseMode)
 	return s.httpServer.RunListener(ln)
 }
 
@@ -113,6 +113,7 @@ func (s *Server) processPostRequest(c *gin.Context) {
 	if err != nil {
 		resp := httpapi.NewErrorJsonRpcResponse(nil, httpapi.InternalError, httpapi.SysCodeMap[httpapi.InternalError], err)
 		c.JSON(http.StatusOK, resp)
+		return
 	}
 
 	var req httpapi.JsonRpcRequest
@@ -120,6 +121,7 @@ func (s *Server) processPostRequest(c *gin.Context) {
 	if err != nil {
 		resp := httpapi.NewErrorJsonRpcResponse(nil, httpapi.ParseError, httpapi.SysCodeMap[httpapi.ParseError], err)
 		c.JSON(http.StatusOK, resp)
+		return
 	}
 
 	path := c.Request.URL.Path
