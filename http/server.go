@@ -2,7 +2,7 @@ package http
 
 import (
 	"github.com/BabySid/gobase"
-	"github.com/BabySid/gorpc/http/base"
+	"github.com/BabySid/gorpc/http/httpapi"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
@@ -17,15 +17,15 @@ type Server struct {
 	httpServer *gin.Engine
 
 	// handles
-	getHandles  map[string]base.RpcHandle
-	postHandles map[string]base.RpcHandle
+	getHandles  map[string]httpapi.RpcHandle
+	postHandles map[string]httpapi.RpcHandle
 }
 
 func NewServer() *Server {
 	return &Server{
 		httpServer:  gin.Default(),
-		getHandles:  make(map[string]base.RpcHandle),
-		postHandles: make(map[string]base.RpcHandle),
+		getHandles:  make(map[string]httpapi.RpcHandle),
+		postHandles: make(map[string]httpapi.RpcHandle),
 	}
 }
 
@@ -34,7 +34,7 @@ func (s *Server) RegisterJsonRPC(name string, receiver interface{}) error {
 	return nil
 }
 
-func (s *Server) RegisterPath(httpMethod string, path string, handle base.RpcHandle) error {
+func (s *Server) RegisterPath(httpMethod string, path string, handle httpapi.RpcHandle) error {
 	switch httpMethod {
 	case http.MethodGet:
 		s.httpServer.GET(path, s.internalHandle)
@@ -86,39 +86,39 @@ func (s *Server) processGetRequest(c *gin.Context) {
 	}
 	handle, ok := s.getHandles[path]
 	if !ok {
-		resp := base.NewErrorJsonRpcResponse(id, MethodNotFound, sysCodeMap[MethodNotFound], path)
+		resp := httpapi.NewErrorJsonRpcResponse(id, httpapi.MethodNotFound, httpapi.SysCodeMap[httpapi.MethodNotFound], path)
 		c.JSON(http.StatusOK, resp)
 		return
 	}
 
-	code := Success
-	ctx := NewAPIContext(path, id, 0, c)
+	code := httpapi.Success
+	ctx := httpapi.NewAPIContext(path, id, 0, c)
 	defer func() {
-		gobase.TrueF(checkCode(code), "%d conflict with sys error code", code)
+		gobase.TrueF(httpapi.CheckCode(code), "%d conflict with sys error code", code)
 		ctx.EndRequest(code)
 	}()
 
 	resp, rpcErr := handle(ctx, nil)
 	if rpcErr != nil {
-		resp := base.NewErrorJsonRpcResponseWithError(id, rpcErr)
+		resp := httpapi.NewErrorJsonRpcResponseWithError(id, rpcErr)
 		code = rpcErr.Code
 		c.JSON(http.StatusOK, resp)
 		return
 	}
-	c.JSON(http.StatusOK, base.NewSuccessJsonRpcResponse(id, resp))
+	c.JSON(http.StatusOK, httpapi.NewSuccessJsonRpcResponse(id, resp))
 }
 
 func (s *Server) processPostRequest(c *gin.Context) {
 	body, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
-		resp := base.NewErrorJsonRpcResponse(nil, InternalError, sysCodeMap[InternalError], err)
+		resp := httpapi.NewErrorJsonRpcResponse(nil, httpapi.InternalError, httpapi.SysCodeMap[httpapi.InternalError], err)
 		c.JSON(http.StatusOK, resp)
 	}
 
-	var req base.JsonRpcRequest
-	err = base.DecodeJson(body, &req)
+	var req httpapi.JsonRpcRequest
+	err = httpapi.DecodeJson(body, &req)
 	if err != nil {
-		resp := base.NewErrorJsonRpcResponse(nil, ParseError, sysCodeMap[ParseError], err)
+		resp := httpapi.NewErrorJsonRpcResponse(nil, httpapi.ParseError, httpapi.SysCodeMap[httpapi.ParseError], err)
 		c.JSON(http.StatusOK, resp)
 	}
 
@@ -126,24 +126,24 @@ func (s *Server) processPostRequest(c *gin.Context) {
 
 	handle, ok := s.postHandles[path]
 	if !ok {
-		resp := base.NewErrorJsonRpcResponse(req.Id, MethodNotFound, sysCodeMap[MethodNotFound], path)
+		resp := httpapi.NewErrorJsonRpcResponse(req.Id, httpapi.MethodNotFound, httpapi.SysCodeMap[httpapi.MethodNotFound], path)
 		c.JSON(http.StatusOK, resp)
 		return
 	}
 
-	code := Success
-	ctx := NewAPIContext(path, req.Id, len(body), c)
+	code := httpapi.Success
+	ctx := httpapi.NewAPIContext(path, req.Id, len(body), c)
 	defer func() {
-		gobase.TrueF(checkCode(code), "%d conflict with sys error code", code)
+		gobase.TrueF(httpapi.CheckCode(code), "%d conflict with sys error code", code)
 		ctx.EndRequest(code)
 	}()
 
 	resp, rpcErr := handle(ctx, req.Params)
 	if rpcErr != nil {
-		resp := base.NewErrorJsonRpcResponseWithError(req.Id, rpcErr)
+		resp := httpapi.NewErrorJsonRpcResponseWithError(req.Id, rpcErr)
 		code = rpcErr.Code
 		c.JSON(http.StatusOK, resp)
 		return
 	}
-	c.JSON(http.StatusOK, base.NewSuccessJsonRpcResponse(req.Id, resp))
+	c.JSON(http.StatusOK, httpapi.NewSuccessJsonRpcResponse(req.Id, resp))
 }

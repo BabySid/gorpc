@@ -1,4 +1,4 @@
-package http
+package httpapi
 
 const (
 	Success         = 0
@@ -11,7 +11,7 @@ const (
 	ReserveMaxError = -32099
 )
 
-var sysCodeMap = map[int]string{
+var SysCodeMap = map[int]string{
 	ParseError:     "Parse error",
 	InvalidRequest: "Invalid request",
 	MethodNotFound: "Method not found",
@@ -19,8 +19,8 @@ var sysCodeMap = map[int]string{
 	InternalError:  "Internal error",
 }
 
-func checkCode(code int) bool {
-	if _, ok := sysCodeMap[code]; ok {
+func CheckCode(code int) bool {
+	if _, ok := SysCodeMap[code]; ok {
 		return false
 	}
 

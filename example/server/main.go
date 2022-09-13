@@ -3,8 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/BabySid/gorpc"
-	goHttp "github.com/BabySid/gorpc/http"
-	"github.com/BabySid/gorpc/http/base"
+	"github.com/BabySid/gorpc/http/httpapi"
 	"net/http"
 )
 
@@ -25,11 +24,11 @@ func main() {
 
 type srv struct{}
 
-func (s *srv) getHandle(ctx *goHttp.APIContext, httpBody *json.RawMessage) (interface{}, *base.JsonRpcError) {
+func (s *srv) getHandle(ctx *httpapi.APIContext, httpBody *json.RawMessage) (interface{}, *httpapi.JsonRpcError) {
 	return "hello world", nil
 }
 
-func (s *srv) postHandle(ctx *goHttp.APIContext, httpBody *json.RawMessage) (interface{}, *base.JsonRpcError) {
+func (s *srv) postHandle(ctx *httpapi.APIContext, httpBody *json.RawMessage) (interface{}, *httpapi.JsonRpcError) {
 	return map[string]interface{}{
 		"hello": 123,
 	}, nil

@@ -3,7 +3,7 @@ package gorpc
 import (
 	"github.com/BabySid/gorpc/grpc"
 	"github.com/BabySid/gorpc/http"
-	"github.com/BabySid/gorpc/http/base"
+	"github.com/BabySid/gorpc/http/httpapi"
 	"github.com/BabySid/gorpc/log"
 	"github.com/BabySid/gorpc/monitor"
 	"github.com/soheilhy/cmux"
@@ -36,7 +36,7 @@ func (s *Server) RegisterJsonRPC() error {
 	return nil
 }
 
-func (s *Server) RegisterPath(httpMethod string, path string, handle base.RpcHandle) error {
+func (s *Server) RegisterPath(httpMethod string, path string, handle httpapi.RpcHandle) error {
 	return s.httpServer.RegisterPath(httpMethod, path, handle)
 }
 

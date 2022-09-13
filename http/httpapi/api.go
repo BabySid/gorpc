@@ -1,9 +1,8 @@
-package base
+package httpapi
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/BabySid/gorpc/http"
 )
 
 type JsonRpcRequest struct {
@@ -52,4 +51,4 @@ func NewErrorJsonRpcResponseWithError(id interface{}, err *JsonRpcError) *JsonRp
 }
 
 // RpcHandle is a raw interface for creating api based http
-type RpcHandle func(ctx *http.APIContext, httpBody *json.RawMessage) (interface{}, *JsonRpcError)
+type RpcHandle func(ctx *APIContext, httpBody *json.RawMessage) (interface{}, *JsonRpcError)

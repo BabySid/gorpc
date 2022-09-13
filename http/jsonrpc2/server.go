@@ -3,7 +3,7 @@ package jsonrpc2
 import (
 	"errors"
 	"fmt"
-	"github.com/BabySid/gorpc/http/base"
+	"github.com/BabySid/gorpc/http/httpapi"
 	log "github.com/sirupsen/logrus"
 	"go/token"
 	"reflect"
@@ -135,8 +135,8 @@ func suitableMethods(typ reflect.Type) map[string]*methodType {
 }
 
 func (s *Server) Call(data []byte) error {
-	var req base.JsonRpcRequest
-	err := base.DecodeJson(data, &req)
+	var req httpapi.JsonRpcRequest
+	err := httpapi.DecodeJson(data, &req)
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func (s *Server) Call(data []byte) error {
 	}
 
 	// argv guaranteed to be a pointer now.
-	if err = base.DecodeJson(*req.Params, argv.Interface()); err != nil {
+	if err = httpapi.DecodeJson(*req.Params, argv.Interface()); err != nil {
 		return err
 	}
 
