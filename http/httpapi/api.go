@@ -7,7 +7,7 @@ import (
 
 type JsonRpcRequest struct {
 	Method string           `json:"method"`
-	Params *json.RawMessage `json:"params"`
+	Params *json.RawMessage `json:"params,omitempty"`
 	Id     interface{}      `json:"id"`
 }
 
