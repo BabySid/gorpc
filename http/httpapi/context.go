@@ -34,7 +34,7 @@ func NewAPIContext(name string, id interface{}, reqSize int, c *gin.Context) *AP
 }
 
 func (ctx *APIContext) EndRequest(code int) {
-	ctx.ToLog("EndRequest")
+	ctx.ToLog("EndRequest %d", code)
 
 	monitor.ProcessingRequests.WithLabelValues(monitor.GetCluster(), ctx.Name).Dec()
 	monitor.TotalRequests.WithLabelValues(monitor.GetCluster(), ctx.Name, fmt.Sprintf("%d", code)).Inc()

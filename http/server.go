@@ -111,7 +111,7 @@ func (s *Server) processGetRequest(c *gin.Context) {
 func (s *Server) processPostRequest(c *gin.Context) {
 	body, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
-		resp := httpapi.NewErrorJsonRpcResponse(nil, httpapi.InternalError, httpapi.SysCodeMap[httpapi.InternalError], err)
+		resp := httpapi.NewErrorJsonRpcResponse(nil, httpapi.InternalError, httpapi.SysCodeMap[httpapi.InternalError], err.Error())
 		c.JSON(http.StatusOK, resp)
 		return
 	}
@@ -119,7 +119,7 @@ func (s *Server) processPostRequest(c *gin.Context) {
 	var req httpapi.JsonRpcRequest
 	err = httpapi.DecodeJson(body, &req)
 	if err != nil {
-		resp := httpapi.NewErrorJsonRpcResponse(nil, httpapi.ParseError, httpapi.SysCodeMap[httpapi.ParseError], err)
+		resp := httpapi.NewErrorJsonRpcResponse(nil, httpapi.ParseError, httpapi.SysCodeMap[httpapi.ParseError], err.Error())
 		c.JSON(http.StatusOK, resp)
 		return
 	}
