@@ -1,7 +1,6 @@
 package jsonrpc2
 
 import (
-	"fmt"
 	"reflect"
 )
 
@@ -19,15 +18,16 @@ type service struct {
 	method   map[string]*methodType // registered methods
 }
 
-func (s *service) call(mtype *methodType, argv, replyv reflect.Value) {
-	function := mtype.method.Func
-	// Invoke the method, providing a new value for the reply.
-	returnValues := function.Call([]reflect.Value{s.receiver, argv, replyv})
+func (s *service) call(mType *methodType, ctx reflect.Value, argv reflect.Value) (interface{}, error) {
+	function := mType.method.Func
+
+	returnValues := function.Call([]reflect.Value{s.receiver, ctx, argv})
+
+	reply := returnValues[0].Interface()
 	// The return value for the method is an error.
-	errInter := returnValues[0].Interface()
-	errmsg := ""
+	errInter := returnValues[1].Interface()
 	if errInter != nil {
-		errmsg = errInter.(error).Error()
+		return nil, errInter.(error)
 	}
-	fmt.Println(errmsg, replyv.Interface())
+	return reply, nil
 }

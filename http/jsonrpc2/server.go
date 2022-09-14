@@ -2,7 +2,6 @@ package jsonrpc2
 
 import (
 	"errors"
-	"fmt"
 	"github.com/BabySid/gorpc/http/httpapi"
 	log "github.com/sirupsen/logrus"
 	"go/token"
@@ -29,39 +28,39 @@ func NewServer() *Server {
 var DefaultServer = NewServer()
 
 // Register publishes the receiver's methods in the DefaultServer.
-func Register(rcvr interface{}) error { return DefaultServer.Register(rcvr) }
+func Register(receiver interface{}) error { return DefaultServer.Register(receiver) }
 
 // RegisterName is like Register but uses the provided name for the type
 // instead of the receiver's concrete type.
-func RegisterName(name string, rcvr interface{}) error {
-	return DefaultServer.RegisterName(name, rcvr)
+func RegisterName(name string, receiver interface{}) error {
+	return DefaultServer.RegisterName(name, receiver)
 }
 
-func (server *Server) Register(rcvr interface{}) error {
-	return server.register(rcvr, "", false)
+func (server *Server) Register(receiver interface{}) error {
+	return server.register(receiver, "", false)
 }
 
 // RegisterName is like Register but uses the provided name for the type
 // instead of the receiver's concrete type.
-func (server *Server) RegisterName(name string, rcvr interface{}) error {
-	return server.register(rcvr, name, true)
+func (server *Server) RegisterName(name string, receiver interface{}) error {
+	return server.register(receiver, name, true)
 }
 
-func (server *Server) register(rcvr interface{}, name string, useName bool) error {
+func (server *Server) register(receiver interface{}, name string, useName bool) error {
 	s := new(service)
-	s.typ = reflect.TypeOf(rcvr)
-	s.receiver = reflect.ValueOf(rcvr)
-	sname := name
+	s.typ = reflect.TypeOf(receiver)
+	s.receiver = reflect.ValueOf(receiver)
+	serverName := name
 	if !useName {
-		sname = reflect.Indirect(s.receiver).Type().Name()
+		serverName = reflect.Indirect(s.receiver).Type().Name()
 	}
-	if sname == "" {
+	if serverName == "" {
 		return errors.New("rpc.Register: no service name for type " + s.typ.String())
 	}
-	if !useName && !token.IsExported(sname) {
-		return errors.New("rpc.Register: type " + sname + " is not exported")
+	if !useName && !token.IsExported(serverName) {
+		return errors.New("rpc.Register: type " + serverName + " is not exported")
 	}
-	s.name = sname
+	s.name = serverName
 
 	// Install the methods
 	s.method = suitableMethods(s.typ)
@@ -72,98 +71,156 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		// To help the user, see if a pointer receiver would work.
 		method := suitableMethods(reflect.PtrTo(s.typ))
 		if len(method) != 0 {
-			str = "rpc.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
+			str = "rpc.Register: type " + serverName + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
 		} else {
-			str = "rpc.Register: type " + sname + " has no exported methods of suitable type"
+			str = "rpc.Register: type " + serverName + " has no exported methods of suitable type"
 		}
 		return errors.New(str)
 	}
 
-	if _, dup := server.serviceMap.LoadOrStore(sname, s); dup {
-		return errors.New("rpc: service already defined: " + sname)
+	// todo register multi method
+	if _, dup := server.serviceMap.LoadOrStore(serverName, s); dup {
+		return errors.New("rpc: service already defined: " + serverName)
 	}
 	return nil
 }
 
-// suitableMethods returns suitable Rpc methods of typ. It will log
-// errors if logErr is true.
+// suitableMethods returns suitable Rpc methods of typ
 func suitableMethods(typ reflect.Type) map[string]*methodType {
 	methods := make(map[string]*methodType)
 	for m := 0; m < typ.NumMethod(); m++ {
 		method := typ.Method(m)
-		mtype := method.Type
-		mname := method.Name
+		mType := method.Type
+		mName := method.Name
 		// Method must be exported.
 		if !method.IsExported() {
 			continue
 		}
-		// Method needs three ins: receiver, *args, *reply.
-		if mtype.NumIn() != 3 {
-			log.Warnf("rpc.Register: method %q has %d input parameters; needs exactly three\n", mname, mtype.NumIn())
+		// Method needs three ins: receiver, ctx, *args.
+		if mType.NumIn() != 3 {
+			log.Warnf("rpc.Register: method %q has %d input parameters; needs exactly three\n", mName, mType.NumIn())
 			continue
 		}
+
+		ctxType := mType.In(1)
+		if ctxType.Kind() != reflect.Ptr {
+			log.Warnf("rpc.Register: ctx type of method %q is not a pointer: %q\n", mName, ctxType)
+			continue
+		}
+		if ctxType.String() != "*httpapi.APIContext" {
+			log.Warnf("rpc.Register: ctx type of method %q is not *httpapi.APIContext: %q\n", mName, ctxType)
+			continue
+		}
+
 		// First arg need not be a pointer.
-		argType := mtype.In(1)
+		argType := mType.In(2)
 		if !isExportedOrBuiltinType(argType) {
-			log.Warnf("rpc.Register: argument type of method %q is not exported: %q\n", mname, argType)
+			log.Warnf("rpc.Register: argument type of method %q is not exported: %q\n", mName, argType)
 			continue
 		}
-		// Second arg must be a pointer.
-		replyType := mtype.In(2)
+
+		// Method needs two out.
+		if mType.NumOut() != 2 {
+			log.Warnf("rpc.Register: method %q has %d input parameters; needs exactly two\n", mName, mType.NumOut())
+			continue
+		}
+
+		// reply must be a pointer.
+		replyType := mType.Out(0)
 		if replyType.Kind() != reflect.Ptr {
-			log.Warnf("rpc.Register: reply type of method %q is not a pointer: %q\n", mname, replyType)
+			log.Warnf("rpc.Register: reply type of method %q is not a pointer: %q\n", mName, replyType)
 			continue
 		}
 		// Reply type must be exported.
 		if !isExportedOrBuiltinType(replyType) {
-			log.Warnf("rpc.Register: reply type of method %q is not exported: %q\n", mname, replyType)
+			log.Warnf("rpc.Register: reply type of method %q is not exported: %q\n", mName, replyType)
 			continue
 		}
-		// Method needs one out.
-		if mtype.NumOut() != 1 {
-			log.Warnf("rpc.Register: method %q has %d output parameters; needs exactly one\n", mname, mtype.NumOut())
-			continue
-		}
+
 		// The return type of the method must be error.
-		if returnType := mtype.Out(0); returnType != typeOfError {
-			log.Warnf("rpc.Register: return type of method %q is %q, must be error\n", mname, returnType)
+		if returnType := mType.Out(1); returnType != typeOfError {
+			log.Warnf("rpc.Register: return type of method %q is %q, must be error\n", mName, returnType)
 			continue
 		}
-		methods[mname] = &methodType{method: method, ArgType: argType, ReplyType: replyType}
+		methods[mName] = &methodType{method: method, ArgType: argType, ReplyType: replyType}
 	}
 	return methods
 }
 
-func (s *Server) Call(data []byte) error {
-	var req httpapi.JsonRpcRequest
-	err := httpapi.DecodeJson(data, &req)
+func (server *Server) Call(ctx *httpapi.APIContext, data []byte) interface{} {
+	reqData, err := parseRequestBody(data)
 	if err != nil {
-		return err
+		return httpapi.NewErrorJsonRpcResponseWithError(nil,
+			httpapi.NewJsonRpcError(httpapi.ParseError, httpapi.SysCodeMap[httpapi.ParseError], err.Error()))
 	}
-	dot := strings.LastIndex(req.Method, ".")
+
+	if reflect.ValueOf(reqData).Kind() == reflect.Map {
+		input, ok := reqData.(map[string]interface{})
+		if !ok {
+			return httpapi.NewErrorJsonRpcResponseWithError(nil,
+				httpapi.NewJsonRpcError(httpapi.InvalidRequest, httpapi.SysCodeMap[httpapi.InvalidRequest], nil))
+		}
+		res := server.processRequest(ctx, input)
+		return res
+	} else if reflect.ValueOf(reqData).Kind() == reflect.Slice {
+		resArr := make([]interface{}, 0)
+		for _, req := range reqData.([]interface{}) {
+			input, ok := req.(map[string]interface{})
+			if !ok {
+				return httpapi.NewErrorJsonRpcResponseWithError(nil,
+					httpapi.NewJsonRpcError(httpapi.InvalidRequest, httpapi.SysCodeMap[httpapi.InvalidRequest], nil))
+			}
+			res := server.processRequest(ctx, input)
+			resArr = append(resArr, res)
+		}
+		if len(resArr) == 0 {
+			return httpapi.NewErrorJsonRpcResponseWithError(nil,
+				httpapi.NewJsonRpcError(httpapi.InvalidRequest, httpapi.SysCodeMap[httpapi.InvalidRequest], "empty request"))
+		}
+		return resArr
+	}
+
+	return httpapi.NewErrorJsonRpcResponseWithError(nil,
+		httpapi.NewJsonRpcError(httpapi.InvalidRequest, httpapi.SysCodeMap[httpapi.InvalidRequest], "request must array or object"))
+}
+
+func (server *Server) processRequest(ctx *httpapi.APIContext, reqMap map[string]interface{}) *httpapi.JsonRpcResponse {
+	req, rpcErr := parseRequestMap(reqMap)
+	if rpcErr != nil {
+		return httpapi.NewErrorJsonRpcResponseWithError(req.Version, rpcErr)
+	}
+
+	dot := strings.Index(req.Method, ".")
 	if dot < 0 {
-		return errors.New("rpc: service/method request ill-formed: " + req.Method)
+		return httpapi.NewErrorJsonRpcResponseWithError(req.Id, httpapi.NewJsonRpcError(httpapi.InvalidRequest,
+			httpapi.SysCodeMap[httpapi.InvalidRequest],
+			"rpc: service/method request ill-formed: "+req.Method))
 	}
 	serviceName := req.Method[:dot]
 	methodName := req.Method[dot+1:]
 
 	// Look up the request.
-	svci, ok := s.serviceMap.Load(serviceName)
+	srv, ok := server.serviceMap.Load(serviceName)
 	if !ok {
-		return errors.New("rpc: can't find service " + req.Method)
+		return httpapi.NewErrorJsonRpcResponseWithError(req.Id, httpapi.NewJsonRpcError(httpapi.MethodNotFound,
+			httpapi.SysCodeMap[httpapi.MethodNotFound],
+			"rpc: can't find service: "+req.Method))
 	}
-	svc := svci.(*service)
-	mtype := svc.method[methodName]
-	if mtype == nil {
-		return errors.New("rpc: can't find method " + req.Method)
+
+	svc := srv.(*service)
+	mType := svc.method[methodName]
+	if mType == nil {
+		return httpapi.NewErrorJsonRpcResponseWithError(req.Id, httpapi.NewJsonRpcError(httpapi.MethodNotFound,
+			httpapi.SysCodeMap[httpapi.MethodNotFound],
+			"rpc: can't find method: "+req.Method))
 	}
 
 	argIsValue := false // if true, need to indirect before calling.
-	var argv, replyv reflect.Value
-	if mtype.ArgType.Kind() == reflect.Ptr {
-		argv = reflect.New(mtype.ArgType.Elem())
+	var argv reflect.Value
+	if mType.ArgType.Kind() == reflect.Ptr {
+		argv = reflect.New(mType.ArgType.Elem())
 	} else {
-		argv = reflect.New(mtype.ArgType)
+		argv = reflect.New(mType.ArgType)
 		argIsValue = true
 	}
 	if argIsValue {
@@ -171,20 +228,27 @@ func (s *Server) Call(data []byte) error {
 	}
 
 	// argv guaranteed to be a pointer now.
-	if err = httpapi.DecodeJson(*req.Params, argv.Interface()); err != nil {
-		return err
+	if err := parseRequestParams(req.Params, argv.Interface()); err != nil {
+		return httpapi.NewErrorJsonRpcResponseWithError(req.Id, httpapi.NewJsonRpcError(httpapi.InvalidParams,
+			httpapi.SysCodeMap[httpapi.InvalidParams],
+			err.Error()))
 	}
 
-	replyv = reflect.New(mtype.ReplyType.Elem())
+	//replyValue := reflect.New(mType.ReplyType.Elem())
+	//
+	//switch mType.ReplyType.Elem().Kind() {
+	//case reflect.Map:
+	//	replyValue.Elem().Set(reflect.MakeMap(mType.ReplyType.Elem()))
+	//case reflect.Slice:
+	//	replyValue.Elem().Set(reflect.MakeSlice(mType.ReplyType.Elem(), 0, 0))
+	//}
 
-	switch mtype.ReplyType.Elem().Kind() {
-	case reflect.Map:
-		replyv.Elem().Set(reflect.MakeMap(mtype.ReplyType.Elem()))
-	case reflect.Slice:
-		replyv.Elem().Set(reflect.MakeSlice(mtype.ReplyType.Elem(), 0, 0))
+	replyValue, err := svc.call(mType, reflect.ValueOf(ctx), argv)
+	if err != nil {
+		return httpapi.NewErrorJsonRpcResponseWithError(req.Id, httpapi.NewJsonRpcError(httpapi.InternalError,
+			httpapi.SysCodeMap[httpapi.InternalError],
+			err.Error()))
 	}
 
-	svc.call(mtype, argv, replyv)
-	fmt.Println(replyv.String(), replyv.Elem().String())
-	return nil
+	return httpapi.NewSuccessJsonRpcResponse(req.Id, replyValue)
 }

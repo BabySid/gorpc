@@ -31,8 +31,8 @@ func NewServer() *Server {
 	return s
 }
 
-func (s *Server) RegisterJsonRPC() error {
-
+func (s *Server) RegisterJsonRPC(name string, receiver interface{}) error {
+	s.httpServer.RegisterJsonRPC(name, receiver)
 	return nil
 }
 

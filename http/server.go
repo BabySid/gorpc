@@ -3,7 +3,9 @@ package http
 import (
 	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc/http/httpapi"
+	"github.com/BabySid/gorpc/http/jsonrpc2"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -16,22 +18,29 @@ import (
 type Server struct {
 	httpServer *gin.Engine
 
+	rpcServer *jsonrpc2.Server
+
 	// handles
 	getHandles  map[string]httpapi.RpcHandle
 	postHandles map[string]httpapi.RpcHandle
 }
 
 func NewServer() *Server {
-	return &Server{
+	gin.SetMode(gin.ReleaseMode)
+
+	s := &Server{
 		httpServer:  gin.Default(),
+		rpcServer:   jsonrpc2.NewServer(),
 		getHandles:  make(map[string]httpapi.RpcHandle),
 		postHandles: make(map[string]httpapi.RpcHandle),
 	}
+
+	s.httpServer.POST("/", s.processPostRequest)
+	return s
 }
 
 func (s *Server) RegisterJsonRPC(name string, receiver interface{}) error {
-
-	return nil
+	return s.rpcServer.RegisterName(name, receiver)
 }
 
 func (s *Server) RegisterPath(httpMethod string, path string, handle httpapi.RpcHandle) error {
@@ -56,11 +65,10 @@ func (s *Server) Run(ln net.Listener) error {
 
 	dir := http.Dir(path + "/..")
 	log.Infof("set static fs to %s", dir)
-	s.httpServer.StaticFS("openapi", dir)
+	s.httpServer.StaticFS("_dir_", dir)
 
 	// monitor
 	s.httpServer.GET("metrics", gin.WrapH(promhttp.Handler()))
-	gin.SetMode(gin.ReleaseMode)
 	return s.httpServer.RunListener(ln)
 }
 
@@ -98,14 +106,11 @@ func (s *Server) processGetRequest(c *gin.Context) {
 		ctx.EndRequest(code)
 	}()
 
-	resp, rpcErr := handle(ctx, nil)
-	if rpcErr != nil {
-		resp := httpapi.NewErrorJsonRpcResponseWithError(id, rpcErr)
-		code = rpcErr.Code
-		c.JSON(http.StatusOK, resp)
-		return
+	resp := handle(ctx, nil)
+	if resp.Error != nil {
+		code = resp.Error.Code
 	}
-	c.JSON(http.StatusOK, httpapi.NewSuccessJsonRpcResponse(id, resp))
+	c.JSON(http.StatusOK, resp)
 }
 
 func (s *Server) processPostRequest(c *gin.Context) {
@@ -116,6 +121,12 @@ func (s *Server) processPostRequest(c *gin.Context) {
 		return
 	}
 
+	path := c.Request.URL.Path
+	if path == "" || path == "/" {
+		s.processJsonRpc(c, body)
+		return
+	}
+
 	var req httpapi.JsonRpcRequest
 	err = httpapi.DecodeJson(body, &req)
 	if err != nil {
@@ -123,8 +134,6 @@ func (s *Server) processPostRequest(c *gin.Context) {
 		c.JSON(http.StatusOK, resp)
 		return
 	}
-
-	path := c.Request.URL.Path
 
 	handle, ok := s.postHandles[path]
 	if !ok {
@@ -140,12 +149,19 @@ func (s *Server) processPostRequest(c *gin.Context) {
 		ctx.EndRequest(code)
 	}()
 
-	resp, rpcErr := handle(ctx, req.Params)
-	if rpcErr != nil {
-		resp := httpapi.NewErrorJsonRpcResponseWithError(req.Id, rpcErr)
-		code = rpcErr.Code
-		c.JSON(http.StatusOK, resp)
-		return
+	resp := handle(ctx, req.Params)
+	if resp.Error != nil {
+		code = resp.Error.Code
 	}
-	c.JSON(http.StatusOK, httpapi.NewSuccessJsonRpcResponse(req.Id, resp))
+	c.JSON(http.StatusOK, resp)
+}
+
+func (s *Server) processJsonRpc(c *gin.Context, body []byte) {
+	ctx := httpapi.NewAPIContext("jsonRpc2", uuid.New().String(), len(body), c)
+	defer func() {
+		ctx.EndRequest(httpapi.Success)
+	}()
+
+	resp := s.rpcServer.Call(ctx, body)
+	c.JSON(http.StatusOK, resp)
 }
