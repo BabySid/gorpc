@@ -15,12 +15,13 @@ func main() {
 	s.RegisterPath(http.MethodPost, "/v1/post", t.postHandle)
 	s.RegisterJsonRPC("rpc", &rpcServer{})
 
-	_ = s.Run(gorpc.ServerOption{
+	err := s.Run(gorpc.ServerOption{
 		Addr:        ":8888",
 		ClusterName: "test",
 		Rotator:     nil,
 		LogLevel:    "info",
 	})
+	fmt.Println(err)
 }
 
 type srv struct{}
@@ -50,6 +51,13 @@ type Result = int
 
 type Result2 struct {
 	C int `json:"c"`
+}
+
+func (i *rpcServer) Add3(ctx *httpapi.APIContext, params *interface{}) (*Result, error) {
+	a := 100
+	result := interface{}(a).(Result)
+	ctx.ToLog("Add %v", result)
+	return &result, nil
 }
 
 func (i *rpcServer) Add(ctx *httpapi.APIContext, params *Params) (*Result, error) {
