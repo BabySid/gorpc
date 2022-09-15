@@ -6,6 +6,7 @@ import (
 	"github.com/BabySid/gorpc/http/httpapi"
 	"github.com/BabySid/gorpc/log"
 	"github.com/BabySid/gorpc/monitor"
+	l "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"net"
 )
@@ -62,5 +63,6 @@ func (s *Server) Run(option ServerOption) error {
 		_ = s.httpServer.Run(httpL)
 	}()
 
+	l.Infof("gorpc server run on %s", ln.Addr())
 	return m.Serve()
 }
