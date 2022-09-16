@@ -4,6 +4,7 @@ import (
 	"github.com/BabySid/gorpc/grpc"
 	"github.com/BabySid/gorpc/http"
 	"github.com/BabySid/gorpc/http/httpapi"
+	"github.com/BabySid/gorpc/http/httpcfg"
 	"github.com/BabySid/gorpc/log"
 	"github.com/BabySid/gorpc/monitor"
 	l "github.com/sirupsen/logrus"
@@ -24,9 +25,9 @@ type Server struct {
 	grpcServer *grpc.Server
 }
 
-func NewServer() *Server {
+func NewServer(opt httpcfg.ServerOption) *Server {
 	s := &Server{
-		httpServer: http.NewServer(),
+		httpServer: http.NewServer(opt),
 		grpcServer: grpc.NewServer(),
 	}
 	return s

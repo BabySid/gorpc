@@ -3,6 +3,7 @@ package http
 import (
 	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc/http/httpapi"
+	"github.com/BabySid/gorpc/http/httpcfg"
 	"github.com/BabySid/gorpc/http/jsonrpc2"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -25,12 +26,12 @@ type Server struct {
 	postHandles map[string]httpapi.RpcHandle
 }
 
-func NewServer() *Server {
+func NewServer(option httpcfg.ServerOption) *Server {
 	gin.SetMode(gin.ReleaseMode)
 
 	s := &Server{
 		httpServer:  gin.Default(),
-		rpcServer:   jsonrpc2.NewServer(),
+		rpcServer:   jsonrpc2.NewServer(option),
 		getHandles:  make(map[string]httpapi.RpcHandle),
 		postHandles: make(map[string]httpapi.RpcHandle),
 	}

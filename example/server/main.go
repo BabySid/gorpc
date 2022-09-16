@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"github.com/BabySid/gorpc"
 	"github.com/BabySid/gorpc/http/httpapi"
+	"github.com/BabySid/gorpc/http/httpcfg"
 	"net/http"
 )
 
 func main() {
-	s := gorpc.NewServer()
+	s := gorpc.NewServer(httpcfg.DefaultOption)
 
 	t := &srv{}
 	s.RegisterPath(http.MethodGet, "/v1/get", t.getHandle)

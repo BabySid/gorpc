@@ -1,14 +1,9 @@
 package jsonrpc2
 
 import (
-	"bytes"
 	"encoding/json"
 	"github.com/BabySid/gorpc/http/httpapi"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/utilities"
 	"go/token"
-	"google.golang.org/protobuf/encoding/protojson"
-	"io"
 	"reflect"
 )
 
@@ -57,42 +52,4 @@ func parseRequestMap(jsonMap map[string]interface{}) (*httpapi.JsonRpcRequest, *
 	}
 
 	return &request, nil
-}
-
-func stdParamsDecoder(raw interface{}, params interface{}) error {
-	bs, err := json.Marshal(raw)
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(bs, params)
-	return err
-}
-
-func pbParamsDecoder(raw interface{}, params interface{}) error {
-	bs, err := json.Marshal(raw)
-	if err != nil {
-		return err
-	}
-
-	newReader, err := utilities.IOReaderFactory(bytes.NewReader(bs))
-	if err != nil {
-		return err
-	}
-
-	defaultMarshal := &runtime.JSONPb{
-		MarshalOptions: protojson.MarshalOptions{
-			EmitUnpopulated: true,
-		},
-		UnmarshalOptions: protojson.UnmarshalOptions{
-			DiscardUnknown: true,
-		},
-	}
-
-	err = defaultMarshal.NewDecoder(newReader()).Decode(params)
-	if err != nil && err != io.EOF {
-		return err
-	}
-
-	return nil
 }

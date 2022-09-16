@@ -3,6 +3,7 @@ package jsonrpc2
 import (
 	"errors"
 	"github.com/BabySid/gorpc/http/httpapi"
+	"github.com/BabySid/gorpc/http/httpcfg"
 	log "github.com/sirupsen/logrus"
 	"go/token"
 	"reflect"
@@ -14,30 +15,19 @@ import (
 // because Typeof takes an empty interface value. This is annoying.
 var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
 
-type ParamsDecoder func(in interface{}, out interface{}) error
-type ServerOption struct {
-	PDecoder ParamsDecoder
-}
-
-var (
-	StdParamsDecoder      = stdParamsDecoder
-	ProtoBufParamsDecoder = pbParamsDecoder
-	DefaultOption         = ServerOption{PDecoder: StdParamsDecoder}
-)
-
 // Server represents an RPC Server.
 type Server struct {
-	opt        ServerOption
+	opt        httpcfg.ServerOption
 	serviceMap sync.Map // map[string]*service
 }
 
 // NewServer returns a new Server.
-func NewServer(opt ServerOption) *Server {
+func NewServer(opt httpcfg.ServerOption) *Server {
 	return &Server{opt: opt}
 }
 
 // DefaultServer is the default instance of *Server.
-var DefaultServer = NewServer(DefaultOption)
+var DefaultServer = NewServer(httpcfg.DefaultOption)
 
 // Register publishes the receiver's methods in the DefaultServer.
 func Register(receiver interface{}) error { return DefaultServer.Register(receiver) }
