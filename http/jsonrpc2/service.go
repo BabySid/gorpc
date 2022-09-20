@@ -18,16 +18,14 @@ type service struct {
 	method   map[string]*methodType // registered methods
 }
 
-func (s *service) call(mType *methodType, ctx reflect.Value, argv reflect.Value) (interface{}, error) {
+func (s *service) call(mType *methodType, ctx reflect.Value, argv reflect.Value) (interface{}, interface{}) {
 	function := mType.method.Func
 
 	returnValues := function.Call([]reflect.Value{s.receiver, ctx, argv})
 
 	reply := returnValues[0].Interface()
-	// The return value for the method is an error.
-	errInter := returnValues[1].Interface()
-	if errInter != nil {
-		return nil, errInter.(error)
-	}
-	return reply, nil
+	// The return value for the method is an *httpapi.JsonRpcError.
+	//if returnValues[1].Interface()
+	err := returnValues[1].Interface()
+	return reply, err
 }

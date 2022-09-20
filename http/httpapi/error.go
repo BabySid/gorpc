@@ -7,8 +7,8 @@ const (
 	MethodNotFound  = -32601
 	InvalidParams   = -32602
 	InternalError   = -32603
-	ReserveMinError = -32000
-	ReserveMaxError = -32099
+	ReserveMinError = -32099
+	ReserveMaxError = -32000
 )
 
 var SysCodeMap = map[int]string{

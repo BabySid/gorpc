@@ -54,26 +54,26 @@ type Result2 struct {
 	C int `json:"c"`
 }
 
-func (i *rpcServer) Add3(ctx *httpapi.APIContext, params *interface{}) (*Result, error) {
+func (i *rpcServer) Add3(ctx *httpapi.APIContext, params *interface{}) (*Result, *httpapi.JsonRpcError) {
 	a := 100
 	result := interface{}(a).(Result)
 	ctx.ToLog("Add %v", result)
 	return &result, nil
 }
 
-func (i *rpcServer) Add(ctx *httpapi.APIContext, params *Params) (*Result, error) {
+func (i *rpcServer) Add(ctx *httpapi.APIContext, params *Params) (*Result, *httpapi.JsonRpcError) {
 	a := params.A + params.B
 	result := interface{}(a).(Result)
 	ctx.ToLog("Add %v", result)
 	return &result, nil
 }
 
-func (i *rpcServer) Add2(ctx *httpapi.APIContext, params *Params) (*Result2, error) {
+func (i *rpcServer) Add2(ctx *httpapi.APIContext, params *Params) (*Result2, *httpapi.JsonRpcError) {
 	var result Result2
 	result.C = params.A + params.B
 	ctx.ToLog("Add2 %v", result)
 	if result.C%100 == 0 {
-		return nil, fmt.Errorf("bad param")
+		return nil, httpapi.NewJsonRpcError(-32000, "bad param", nil)
 	}
 	return &result, nil
 }

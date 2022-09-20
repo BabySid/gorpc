@@ -2,6 +2,7 @@ package jsonrpc2
 
 import (
 	"errors"
+	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc/http/httpapi"
 	"github.com/BabySid/gorpc/http/httpcfg"
 	log "github.com/sirupsen/logrus"
@@ -13,7 +14,7 @@ import (
 
 // Precompute the reflect type for error. Can't use error directly
 // because Typeof takes an empty interface value. This is annoying.
-var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
+var typeOfError = reflect.TypeOf((*httpapi.JsonRpcError)(nil))
 
 // Server represents an RPC Server.
 type Server struct {
@@ -141,7 +142,7 @@ func suitableMethods(typ reflect.Type) map[string]*methodType {
 
 		// The return type of the method must be error.
 		if returnType := mType.Out(1); returnType != typeOfError {
-			log.Warnf("rpc.Register: return type of method %q is %q, must be error\n", mName, returnType)
+			log.Warnf("rpc.Register: return type of method %q is %q, must be %q\n", mName, returnType, typeOfError.String())
 			continue
 		}
 		methods[mName] = &methodType{method: method, ArgType: argType, ReplyType: replyType}
@@ -246,10 +247,10 @@ func (server *Server) processRequest(ctx *httpapi.APIContext, reqMap map[string]
 	//}
 
 	replyValue, err := svc.call(mType, reflect.ValueOf(ctx), argv)
-	if err != nil {
-		return httpapi.NewErrorJsonRpcResponseWithError(req.Id, httpapi.NewJsonRpcError(httpapi.InternalError,
-			httpapi.SysCodeMap[httpapi.InternalError],
-			err.Error()))
+	apiErr := err.(*httpapi.JsonRpcError)
+	if apiErr != nil {
+		gobase.TrueF(httpapi.CheckCode(apiErr.Code), "%d conflict with sys error code", apiErr.Code)
+		return httpapi.NewErrorJsonRpcResponseWithError(req.Id, apiErr)
 	}
 
 	return httpapi.NewSuccessJsonRpcResponse(req.Id, replyValue)
