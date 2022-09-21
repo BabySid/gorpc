@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/BabySid/gobase v0.0.0-20220909073940-956b7a4bad57
 	github.com/gin-gonic/gin v1.8.1
-	github.com/google/uuid v1.1.2
+	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/prometheus/client_golang v1.13.0
