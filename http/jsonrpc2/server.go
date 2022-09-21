@@ -2,7 +2,6 @@ package jsonrpc2
 
 import (
 	"errors"
-	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc/http/httpapi"
 	"github.com/BabySid/gorpc/http/httpcfg"
 	log "github.com/sirupsen/logrus"
@@ -249,7 +248,6 @@ func (server *Server) processRequest(ctx *httpapi.APIContext, reqMap map[string]
 	replyValue, err := svc.call(mType, reflect.ValueOf(ctx), argv)
 	apiErr := err.(*httpapi.JsonRpcError)
 	if apiErr != nil {
-		gobase.TrueF(httpapi.CheckCode(apiErr.Code), "%d conflict with sys error code", apiErr.Code)
 		return httpapi.NewErrorJsonRpcResponseWithError(req.Id, apiErr)
 	}
 

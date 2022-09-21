@@ -103,7 +103,6 @@ func (s *Server) processGetRequest(c *gin.Context) {
 	code := httpapi.Success
 	ctx := httpapi.NewAPIContext(path, id, 0, c)
 	defer func() {
-		gobase.TrueF(httpapi.CheckCode(code), "%d conflict with sys error code", code)
 		ctx.EndRequest(code)
 	}()
 
@@ -146,7 +145,6 @@ func (s *Server) processPostRequest(c *gin.Context) {
 	code := httpapi.Success
 	ctx := httpapi.NewAPIContext(path, req.Id, len(body), c)
 	defer func() {
-		gobase.TrueF(httpapi.CheckCode(code), "%d conflict with sys error code", code)
 		ctx.EndRequest(code)
 	}()
 

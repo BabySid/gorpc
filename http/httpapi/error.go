@@ -18,15 +18,3 @@ var SysCodeMap = map[int]string{
 	InvalidParams:  "Invalid params",
 	InternalError:  "Internal error",
 }
-
-func CheckCode(code int) bool {
-	if _, ok := SysCodeMap[code]; ok {
-		return false
-	}
-
-	if code >= ReserveMinError && code <= ReserveMaxError {
-		return false
-	}
-
-	return true
-}
