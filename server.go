@@ -28,6 +28,8 @@ type ServerOption struct {
 type Server struct {
 	httpServer *http.Server
 	grpcServer *grpc.Server
+	mux        cmux.CMux
+	pidFile    string
 }
 
 func NewServer(opt httpcfg.ServerOption) *Server {
@@ -56,25 +58,28 @@ func (s *Server) Run(option ServerOption) error {
 		return err
 	}
 
-	m := cmux.New(ln)
+	s.mux = cmux.New(ln)
 
 	go func() {
-		grpcL := m.MatchWithWriters(
+		grpcL := s.mux.MatchWithWriters(
 			cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 		_ = s.grpcServer.Run(grpcL)
 	}()
 
 	go func() {
-		httpL := m.Match(cmux.HTTP1Fast())
+		httpL := s.mux.Match(cmux.HTTP1Fast())
 		_ = s.httpServer.Run(httpL)
 	}()
 
-	pidFile := fmt.Sprintf("%s.pid", filepath.Base(os.Args[0]))
-	_ = ioutil.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())), 0666)
-	defer func() {
-		_ = os.Remove(pidFile)
-	}()
+	s.pidFile = fmt.Sprintf("%s.pid", filepath.Base(os.Args[0]))
+	_ = ioutil.WriteFile(s.pidFile, []byte(strconv.Itoa(os.Getpid())), 0666)
 
 	l.Infof("gorpc server run on %s", ln.Addr())
-	return m.Serve()
+	return s.mux.Serve()
+}
+
+func (s *Server) Stop() error {
+	s.mux.Close()
+	_ = os.Remove(s.pidFile)
+	return nil
 }
