@@ -11,3 +11,12 @@ func StdParamsDecoder(raw interface{}, params interface{}) error {
 	err = json.Unmarshal(bs, params)
 	return err
 }
+
+func StdReplyEncoder(reply interface{}) ([]byte, error) {
+	bs, err := json.Marshal(reply)
+	if err != nil {
+		return nil, err
+	}
+
+	return bs, nil
+}

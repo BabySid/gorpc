@@ -36,3 +36,15 @@ func ProtobufParamsDecoder(raw interface{}, params interface{}) error {
 
 	return nil
 }
+
+func ProtobufReplyEncoder(reply interface{}) ([]byte, error) {
+	defaultMarshal := &runtime.JSONPb{
+		MarshalOptions: protojson.MarshalOptions{
+			EmitUnpopulated: true,
+		},
+		UnmarshalOptions: protojson.UnmarshalOptions{
+			DiscardUnknown: true,
+		},
+	}
+	return defaultMarshal.Marshal(reply)
+}

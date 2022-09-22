@@ -38,6 +38,10 @@ func RegisterName(name string, receiver interface{}) error {
 	return DefaultServer.RegisterName(name, receiver)
 }
 
+func (server *Server) GetOption() httpcfg.ServerOption {
+	return server.opt
+}
+
 func (server *Server) Register(receiver interface{}) error {
 	return server.register(receiver, "", false)
 }
@@ -230,7 +234,8 @@ func (server *Server) processRequest(ctx *httpapi.APIContext, reqMap map[string]
 	}
 
 	// argv guaranteed to be a pointer now.
-	if err := server.opt.PDecoder(req.Params, argv.Interface()); err != nil {
+	decoder := httpcfg.GetParamDecoder(server.opt.Codec)
+	if err := decoder(req.Params, argv.Interface()); err != nil {
 		return httpapi.NewErrorJsonRpcResponseWithError(req.Id, httpapi.NewJsonRpcError(httpapi.InvalidParams,
 			httpapi.SysCodeMap[httpapi.InvalidParams],
 			err.Error()))
