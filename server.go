@@ -1,6 +1,7 @@
 package gorpc
 
 import (
+	"fmt"
 	"github.com/BabySid/gorpc/grpc"
 	"github.com/BabySid/gorpc/http"
 	"github.com/BabySid/gorpc/http/httpapi"
@@ -9,7 +10,11 @@ import (
 	"github.com/BabySid/gorpc/monitor"
 	l "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
+	"io/ioutil"
 	"net"
+	"os"
+	"path/filepath"
+	"strconv"
 )
 
 type ServerOption struct {
@@ -62,6 +67,12 @@ func (s *Server) Run(option ServerOption) error {
 	go func() {
 		httpL := m.Match(cmux.HTTP1Fast())
 		_ = s.httpServer.Run(httpL)
+	}()
+
+	pidFile := fmt.Sprintf("%s.pid", filepath.Base(os.Args[0]))
+	_ = ioutil.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())), 0666)
+	defer func() {
+		_ = os.Remove(pidFile)
 	}()
 
 	l.Infof("gorpc server run on %s", ln.Addr())
