@@ -9,6 +9,19 @@ import (
 	"io"
 )
 
+var (
+	DefaultProtoMarshal = &runtime.JSONPb{
+		MarshalOptions: protojson.MarshalOptions{
+			EmitUnpopulated: true,
+			UseEnumNumbers:  false,
+			UseProtoNames:   true,
+		},
+		UnmarshalOptions: protojson.UnmarshalOptions{
+			DiscardUnknown: true,
+		},
+	}
+)
+
 func ProtobufParamsDecoder(raw interface{}, params interface{}) error {
 	bs, err := json.Marshal(raw)
 	if err != nil {
@@ -20,17 +33,7 @@ func ProtobufParamsDecoder(raw interface{}, params interface{}) error {
 		return err
 	}
 
-	defaultMarshal := &runtime.JSONPb{
-		MarshalOptions: protojson.MarshalOptions{
-			EmitUnpopulated: true,
-			UseEnumNumbers:  false,
-		},
-		UnmarshalOptions: protojson.UnmarshalOptions{
-			DiscardUnknown: true,
-		},
-	}
-
-	err = defaultMarshal.NewDecoder(newReader()).Decode(params)
+	err = DefaultProtoMarshal.NewDecoder(newReader()).Decode(params)
 	if err != nil && err != io.EOF {
 		return err
 	}
@@ -39,14 +42,5 @@ func ProtobufParamsDecoder(raw interface{}, params interface{}) error {
 }
 
 func ProtobufReplyEncoder(reply interface{}) ([]byte, error) {
-	defaultMarshal := &runtime.JSONPb{
-		MarshalOptions: protojson.MarshalOptions{
-			EmitUnpopulated: true,
-			UseEnumNumbers:  false,
-		},
-		UnmarshalOptions: protojson.UnmarshalOptions{
-			DiscardUnknown: true,
-		},
-	}
-	return defaultMarshal.Marshal(reply)
+	return DefaultProtoMarshal.Marshal(reply)
 }
