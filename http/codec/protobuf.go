@@ -23,6 +23,7 @@ func ProtobufParamsDecoder(raw interface{}, params interface{}) error {
 	defaultMarshal := &runtime.JSONPb{
 		MarshalOptions: protojson.MarshalOptions{
 			EmitUnpopulated: true,
+			UseEnumNumbers:  false,
 		},
 		UnmarshalOptions: protojson.UnmarshalOptions{
 			DiscardUnknown: true,
