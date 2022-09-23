@@ -1,7 +1,10 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/BabySid/gorpc/http/codec"
+	"google.golang.org/protobuf/proto"
 )
 
 type JsonRpcRequest struct {
@@ -12,10 +15,10 @@ type JsonRpcRequest struct {
 }
 
 type JsonRpcResponse struct {
-	Version string        `json:"jsonrpc"`
-	Id      interface{}   `json:"id"`
-	Result  interface{}   `json:"result,omitempty"`
-	Error   *JsonRpcError `json:"error,omitempty"`
+	Version string          `json:"jsonrpc"`
+	Id      interface{}     `json:"id"`
+	Result  json.RawMessage `json:"result,omitempty"`
+	Error   *JsonRpcError   `json:"error,omitempty"`
 }
 
 type JsonRpcError struct {
@@ -33,6 +36,11 @@ func (j *JsonRpcError) Error() string {
 }
 
 func NewJsonRpcError(c int, msg string, data interface{}) *JsonRpcError {
+	// wrapper for typeof error
+	// otherwise user need call this func via `NewJsonRpcError(..., errors.New(...).String())`
+	if err, ok := data.(error); ok {
+		data = err.Error()
+	}
 	return &JsonRpcError{
 		Code:    c,
 		Message: msg,
@@ -41,7 +49,17 @@ func NewJsonRpcError(c int, msg string, data interface{}) *JsonRpcError {
 }
 
 func NewSuccessJsonRpcResponse(id interface{}, result interface{}) *JsonRpcResponse {
-	resp := &JsonRpcResponse{Version: Version, Id: id, Result: result}
+	var rs json.RawMessage
+	var err error
+	if msg, ok := result.(proto.Message); ok {
+		rs, err = codec.DefaultProtoMarshal.Marshal(msg)
+	} else {
+		rs, err = codec.StdReplyEncoder(result)
+	}
+	if err != nil {
+		return nil
+	}
+	resp := &JsonRpcResponse{Version: Version, Id: id, Result: rs}
 	return resp
 }
 

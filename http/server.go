@@ -5,7 +5,6 @@ import (
 	"github.com/BabySid/gorpc/http/httpapi"
 	"github.com/BabySid/gorpc/http/httpcfg"
 	"github.com/BabySid/gorpc/http/jsonrpc2"
-	"github.com/BabySid/gorpc/http/render"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -163,12 +162,5 @@ func (s *Server) processJsonRpc(c *gin.Context, body []byte) {
 	}()
 
 	resp := s.rpcServer.Call(ctx, body)
-	switch s.rpcServer.GetOption().Codec {
-	case httpcfg.JsonCodec:
-		c.JSON(http.StatusOK, resp)
-	case httpcfg.ProtobufCodec:
-		c.Render(http.StatusOK, render.ProtoJson{Data: resp})
-	default:
-		gobase.AssertHere()
-	}
+	c.JSON(http.StatusOK, resp)
 }
