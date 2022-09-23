@@ -41,6 +41,7 @@ func ProtobufReplyEncoder(reply interface{}) ([]byte, error) {
 	defaultMarshal := &runtime.JSONPb{
 		MarshalOptions: protojson.MarshalOptions{
 			EmitUnpopulated: true,
+			UseEnumNumbers:  false,
 		},
 		UnmarshalOptions: protojson.UnmarshalOptions{
 			DiscardUnknown: true,

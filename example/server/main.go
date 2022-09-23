@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/BabySid/gorpc"
 	"github.com/BabySid/gorpc/http/httpapi"
@@ -73,7 +74,7 @@ func (i *rpcServer) Add2(ctx *httpapi.APIContext, params *Params) (*Result2, *ht
 	result.C = params.A + params.B
 	ctx.ToLog("Add2 %v", result)
 	if result.C%100 == 0 {
-		return nil, httpapi.NewJsonRpcError(-32000, "bad param", nil)
+		return nil, httpapi.NewJsonRpcError(-32000, "bad param", errors.New("aha error"))
 	}
 	return &result, nil
 }
