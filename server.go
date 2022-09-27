@@ -10,6 +10,7 @@ import (
 	"github.com/BabySid/gorpc/monitor"
 	l "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
+	g "google.golang.org/grpc"
 	"io/ioutil"
 	"net"
 	"os"
@@ -41,12 +42,15 @@ func NewServer(opt httpcfg.ServerOption) *Server {
 }
 
 func (s *Server) RegisterJsonRPC(name string, receiver interface{}) error {
-	s.httpServer.RegisterJsonRPC(name, receiver)
-	return nil
+	return s.httpServer.RegisterJsonRPC(name, receiver)
 }
 
 func (s *Server) RegisterPath(httpMethod string, path string, handle httpapi.RpcHandle) error {
 	return s.httpServer.RegisterPath(httpMethod, path, handle)
+}
+
+func (s *Server) RegisterGrpc(desc *g.ServiceDesc, impl interface{}) error {
+	return s.grpcServer.RegisterGRPC(desc, impl)
 }
 
 func (s *Server) Run(option ServerOption) error {
