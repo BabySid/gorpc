@@ -26,6 +26,8 @@ type ServerOption struct {
 	LogLevel string
 
 	HttpOpt httpcfg.ServerOption
+
+	RunHandle func() error
 }
 
 type Server struct {
@@ -43,8 +45,6 @@ func NewServer(opt ServerOption) *Server {
 		httpServer: http.NewServer(opt.HttpOpt),
 		grpcServer: grpc.NewServer(),
 	}
-	log.InitLog(s.option.LogLevel, s.option.Rotator)
-	monitor.InitMonitor(s.option.ClusterName)
 	return s
 }
 
@@ -61,6 +61,16 @@ func (s *Server) RegisterGrpc(desc *g.ServiceDesc, impl interface{}) error {
 }
 
 func (s *Server) Run() error {
+	log.InitLog(s.option.LogLevel, s.option.Rotator)
+	monitor.InitMonitor(s.option.ClusterName)
+
+	if s.option.RunHandle != nil {
+		if err := s.option.RunHandle(); err != nil {
+			l.Warnf("run handle failed. err: %v", err)
+			return err
+		}
+	}
+
 	ln, err := net.Listen("tcp", s.option.Addr)
 	if err != nil {
 		return err
