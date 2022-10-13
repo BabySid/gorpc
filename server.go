@@ -24,20 +24,27 @@ type ServerOption struct {
 	// logs
 	Rotator  *log.Rotator
 	LogLevel string
+
+	HttpOpt httpcfg.ServerOption
 }
 
 type Server struct {
+	option ServerOption
+
 	httpServer *http.Server
 	grpcServer *grpc.Server
 	mux        cmux.CMux
 	pidFile    string
 }
 
-func NewServer(opt httpcfg.ServerOption) *Server {
+func NewServer(opt ServerOption) *Server {
 	s := &Server{
-		httpServer: http.NewServer(opt),
+		option:     opt,
+		httpServer: http.NewServer(opt.HttpOpt),
 		grpcServer: grpc.NewServer(),
 	}
+	log.InitLog(s.option.LogLevel, s.option.Rotator)
+	monitor.InitMonitor(s.option.ClusterName)
 	return s
 }
 
@@ -53,11 +60,8 @@ func (s *Server) RegisterGrpc(desc *g.ServiceDesc, impl interface{}) error {
 	return s.grpcServer.RegisterGRPC(desc, impl)
 }
 
-func (s *Server) Run(option ServerOption) error {
-	log.InitLog(option.LogLevel, option.Rotator)
-	monitor.InitMonitor(option.ClusterName)
-
-	ln, err := net.Listen("tcp", option.Addr)
+func (s *Server) Run() error {
+	ln, err := net.Listen("tcp", s.option.Addr)
 	if err != nil {
 		return err
 	}

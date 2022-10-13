@@ -10,19 +10,20 @@ import (
 )
 
 func main() {
-	s := gorpc.NewServer(httpcfg.DefaultOption)
+	s := gorpc.NewServer(gorpc.ServerOption{
+		Addr:        ":8888",
+		ClusterName: "test",
+		Rotator:     nil,
+		LogLevel:    "info",
+		HttpOpt:     httpcfg.DefaultOption,
+	})
 
 	t := &srv{}
 	s.RegisterPath(http.MethodGet, "/v1/get", t.getHandle)
 	s.RegisterPath(http.MethodPost, "/v1/post", t.postHandle)
 	s.RegisterJsonRPC("rpc", &rpcServer{})
 
-	err := s.Run(gorpc.ServerOption{
-		Addr:        ":8888",
-		ClusterName: "test",
-		Rotator:     nil,
-		LogLevel:    "info",
-	})
+	err := s.Run()
 	fmt.Println(err)
 }
 
