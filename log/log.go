@@ -23,11 +23,7 @@ func InitLog(level string, rotator *Rotator) {
 			maxAge = 24 * 7
 		}
 
-		path := rotator.LogPath
-		if path == "" {
-			path = "./"
-		}
-		path += filepath.Base(os.Args[0]) + ".log"
+		path := filepath.Join(rotator.LogPath, filepath.Base(os.Args[0])+".log")
 
 		writer, _ := logRotator.New(
 			path+".%Y%m%d%H",
