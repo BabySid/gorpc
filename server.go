@@ -27,7 +27,7 @@ type ServerOption struct {
 
 	HttpOpt httpcfg.ServerOption
 
-	Action func() error
+	BeforeRun func() error
 }
 
 type Server struct {
@@ -64,8 +64,8 @@ func (s *Server) Run() error {
 	log.InitLog(s.option.LogLevel, s.option.Rotator)
 	monitor.InitMonitor(s.option.ClusterName)
 
-	if s.option.Action != nil {
-		if err := s.option.Action(); err != nil {
+	if s.option.BeforeRun != nil {
+		if err := s.option.BeforeRun(); err != nil {
 			l.Warnf("run handle failed. err: %v", err)
 			return err
 		}
