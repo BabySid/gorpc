@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 type ServerOption struct {
@@ -93,7 +94,17 @@ func (s *Server) Run() error {
 	_ = ioutil.WriteFile(s.pidFile, []byte(strconv.Itoa(os.Getpid())), 0666)
 
 	l.Infof("gorpc server run on %s", ln.Addr())
-	return s.mux.Serve()
+
+	if err = s.mux.Serve(); err != nil {
+		// https://github.com/soheilhy/cmux/issues/39
+		if strings.Contains(err.Error(), "use of closed network connection") {
+			return nil
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 func (s *Server) Stop() error {
