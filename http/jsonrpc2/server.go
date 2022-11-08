@@ -193,7 +193,7 @@ func (server *Server) Call(ctx *httpapi.APIContext, data []byte) interface{} {
 func (server *Server) processRequest(ctx *httpapi.APIContext, reqMap map[string]interface{}) *httpapi.JsonRpcResponse {
 	req, rpcErr := parseRequestMap(reqMap)
 	if rpcErr != nil {
-		return httpapi.NewErrorJsonRpcResponseWithError(req.Id, rpcErr)
+		return httpapi.NewErrorJsonRpcResponseWithError(nil, rpcErr)
 	}
 
 	dot := strings.Index(req.Method, ".")
