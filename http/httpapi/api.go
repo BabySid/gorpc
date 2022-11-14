@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc/http/codec"
 	"google.golang.org/protobuf/proto"
 )
@@ -33,6 +34,12 @@ const (
 
 func (j *JsonRpcError) Error() string {
 	return fmt.Sprintf("jsonError(code: %d, message: %s)", j.Code, j.Message)
+}
+
+func NewJRpcErr(c int, data interface{}) *JsonRpcError {
+	msg := SysCodeMap[c]
+	gobase.True(msg != "")
+	return NewJsonRpcError(c, msg, data)
 }
 
 func NewJsonRpcError(c int, msg string, data interface{}) *JsonRpcError {
