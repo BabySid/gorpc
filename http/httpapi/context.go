@@ -43,8 +43,8 @@ func (ctx *APIContext) EndRequest(code int) {
 }
 
 func (ctx *APIContext) ToLog(format string, v ...interface{}) {
-	log.Infof("%s ID[%v] CostSince[%v]",
-		fmt.Sprintf(format, v...), ctx.ID, time.Since(ctx.RecvTime))
+	log.Infof("%s Name[%s] ID[%v] CostSince[%v]",
+		fmt.Sprintf(format, v...), ctx.Name, ctx.ID, time.Since(ctx.RecvTime))
 }
 
 func (ctx *APIContext) ClientIP() string {

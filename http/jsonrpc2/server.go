@@ -195,6 +195,7 @@ func (server *Server) processRequest(ctx *httpapi.APIContext, reqMap map[string]
 	if rpcErr != nil {
 		return httpapi.NewErrorJsonRpcResponseWithError(nil, rpcErr)
 	}
+	ctx.ToLog("processRequest method[%s] id[%v]", req.Method, req.Id)
 
 	dot := strings.Index(req.Method, ".")
 	if dot < 0 {

@@ -89,7 +89,7 @@ func (s *Server) internalHandle(c *gin.Context) {
 func (s *Server) processGetRequest(c *gin.Context) {
 	path := c.Request.URL.Path
 
-	id := interface{}(nil)
+	id := uuid.New().String()
 	if v, ok := c.GetQuery("id"); ok {
 		id = v
 	}
