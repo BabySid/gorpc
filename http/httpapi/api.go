@@ -9,10 +9,14 @@ import (
 )
 
 type JsonRpcRequest struct {
-	Version string      `json:"jsonrpc"`
-	Method  string      `json:"method"`
-	Params  interface{} `json:"params,omitempty"`
-	Id      interface{} `json:"id"`
+	Version string `json:"jsonrpc"`
+	Method  string `json:"method"`
+	// Params should be json.RawMessage. However, in fact, since the params parameter in the request body is already
+	// an interface after the data is deserialized into a map, if it is set to json.rawMessage,
+	// essentially a conversion process is required. In other words, the type of the value in map after deserialization
+	// is interface{}, and the interface{} cannot be forced to be converted to json.RawMessage
+	Params interface{} `json:"params,omitempty"`
+	Id     interface{} `json:"id"`
 }
 
 type JsonRpcResponse struct {
@@ -33,7 +37,7 @@ const (
 )
 
 func (j *JsonRpcError) Error() string {
-	return fmt.Sprintf("jsonError(code: %d, message: %s)", j.Code, j.Message)
+	return fmt.Sprintf("jsonError(code: %d, message: %s, data: %v)", j.Code, j.Message, j.Data)
 }
 
 func NewJRpcErr(c int, data interface{}) *JsonRpcError {

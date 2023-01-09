@@ -2,13 +2,12 @@ package gorpc
 
 import (
 	"fmt"
+	"github.com/BabySid/gorpc/grpc"
+	"github.com/BabySid/gorpc/http"
 	"net/url"
 )
 
-type Client struct {
-}
-
-func Dial(rawUrl string) (*Client, error) {
+func DialHttpClient(rawUrl string, opts ...http.Option) (*http.Client, error) {
 	u, err := url.Parse(rawUrl)
 	if err != nil {
 		return nil, err
@@ -16,9 +15,21 @@ func Dial(rawUrl string) (*Client, error) {
 
 	switch u.Scheme {
 	case "http", "https":
-		return nil, nil
+		return http.Dial(rawUrl, opts...)
+	default:
+		return nil, fmt.Errorf("no known transport for URL scheme %q", u.Scheme)
+	}
+}
+
+func DialGRPCClient(rawUrl string) (*grpc.Client, error) {
+	u, err := url.Parse(rawUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	switch u.Scheme {
 	case "grpc":
-		return nil, nil
+		return grpc.Dial(rawUrl)
 	default:
 		return nil, fmt.Errorf("no known transport for URL scheme %q", u.Scheme)
 	}

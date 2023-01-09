@@ -6,7 +6,9 @@ import (
 	"github.com/BabySid/gorpc"
 	"github.com/BabySid/gorpc/http/httpapi"
 	"github.com/BabySid/gorpc/http/httpcfg"
+	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 func main() {
@@ -23,8 +25,49 @@ func main() {
 	s.RegisterPath(http.MethodPost, "/v1/post", t.postHandle)
 	s.RegisterJsonRPC("rpc", &rpcServer{})
 
+	go func() {
+		time.Sleep(5 * time.Second)
+		fmt.Println("begin run Client...")
+		testClient()
+	}()
 	err := s.Run()
 	fmt.Println(err)
+}
+
+func testClient() {
+	c, err := gorpc.DialHttpClient("http://localhost:8888")
+	if err != nil {
+		panic(err)
+	}
+
+	var param Params
+	param.A = 100
+	param.B = 200
+
+	var res Result
+	err = c.Call(&res, "rpc.Add", param)
+	fmt.Println("Call rpc.Add return", res, err)
+
+	var res2 Result2
+	err = c.Call(&res2, "rpc.Add2", param)
+	fmt.Println("Call rpc.Add2 return", res2, err.Error())
+
+	var res3 Result
+	err = c.Call(&res3, "rpc.Add3", nil)
+	fmt.Println("Call rpc.Add3 return", res3, err)
+
+	code, body, err := c.RawCall(http.MethodGet, "/v1/get", nil)
+	data, _ := ioutil.ReadAll(body)
+
+	fmt.Println("RawCall Get return", code, string(data), err)
+
+	code, body, err = c.RawCall(http.MethodPost, "/v1/post", map[string]interface{}{
+		"id":     123,
+		"params": "hello rpc",
+	})
+	data, _ = ioutil.ReadAll(body)
+
+	fmt.Println("RawCall Post return", code, string(data), err)
 }
 
 type srv struct{}
