@@ -46,6 +46,17 @@ func NewJRpcErr(c int, data interface{}) *JsonRpcError {
 	return NewJsonRpcError(c, msg, data)
 }
 
+func FromError(err error) (*JsonRpcError, bool) {
+	if err == nil {
+		return nil, true
+	}
+	if rpcErr, ok := err.(*JsonRpcError); ok {
+		return rpcErr, true
+	}
+
+	return nil, false
+}
+
 func NewJsonRpcError(c int, msg string, data interface{}) *JsonRpcError {
 	// wrapper for typeof error
 	// otherwise user need call this func via `NewJsonRpcError(..., errors.New(...).String())`

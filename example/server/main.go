@@ -51,6 +51,8 @@ func testClient() {
 	var res2 Result2
 	err = c.Call(&res2, "rpc.Add2", param)
 	fmt.Println("Call rpc.Add2 return", res2, err.Error())
+	apiErr, ok := httpapi.FromError(err)
+	fmt.Println(apiErr, ok)
 
 	var res3 Result
 	err = c.Call(&res3, "rpc.Add3", nil)
