@@ -37,7 +37,7 @@ func main() {
 func testClient() {
 	c, err := gorpc.DialHttpClient("http://localhost:8888")
 	if err != nil {
-		panic(err)
+		panic(any(err))
 	}
 
 	var param Params
