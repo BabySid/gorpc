@@ -1,9 +1,10 @@
 module github.com/BabySid/gorpc
 
-go 1.17
+go 1.19
 
 require (
 	github.com/BabySid/gobase v0.0.0-20220909073940-956b7a4bad57
+	github.com/BabySid/proto v0.0.0-20230111084449-12620667b84d
 	github.com/gin-gonic/gin v1.8.1
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3

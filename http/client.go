@@ -106,7 +106,16 @@ func (c *Client) Call(result interface{}, method string, args interface{}) error
 	if len(resp.Result) == 0 {
 		return ErrNoResult
 	}
-	return json.Unmarshal(resp.Result, &result)
+
+	switch c.codec {
+	case httpcfg.JsonCodec:
+		return json.Unmarshal(resp.Result, result)
+	case httpcfg.ProtobufCodec:
+		return codec.DefaultProtoMarshal.Unmarshal(resp.Result, result)
+	default:
+		gobase.AssertHere()
+	}
+	return nil
 }
 
 func (c *Client) BatchCall(b []BatchElem) error {
@@ -150,7 +159,14 @@ func (c *Client) BatchCall(b []BatchElem) error {
 			elem.Error = ErrNoResult
 			continue
 		}
-		elem.Error = json.Unmarshal(res.Result, elem.Result)
+		switch c.codec {
+		case httpcfg.JsonCodec:
+			elem.Error = json.Unmarshal(res.Result, elem.Result)
+		case httpcfg.ProtobufCodec:
+			elem.Error = codec.DefaultProtoMarshal.Unmarshal(res.Result, elem.Result)
+		default:
+			gobase.AssertHere()
+		}
 	}
 
 	return err
