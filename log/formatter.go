@@ -3,6 +3,7 @@ package log
 import (
 	"bytes"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"path/filepath"
 	"strconv"
@@ -16,10 +17,14 @@ func NewFormatter() *Formatter {
 	return &Formatter{}
 }
 
+const (
+	logDateTimeLayout = "\"2006-01-02 15:04:05.000\""
+)
+
 func (s *Formatter) Format(entry *log.Entry) ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteString(strings.ToUpper(entry.Level.String()) + " ")
-	buf.WriteString(time.Now().Local().Format("2006-01-02 15:04:05.000") + " ")
+	buf.WriteString(time.Now().Local().Format(logDateTimeLayout) + " ")
 
 	var file string
 	var len int
@@ -46,4 +51,18 @@ func (s *Formatter) Format(entry *log.Entry) ([]byte, error) {
 	buf.WriteString("\n")
 
 	return buf.Bytes(), nil
+}
+
+var GinLogFormatter = func(param gin.LogFormatterParams) string {
+	return fmt.Sprintf("INFO %s - %s %s %s %s %d %s %d [%s]\n",
+		param.TimeStamp.Format(logDateTimeLayout),
+		param.ClientIP,
+		param.Method,
+		param.Path,
+		param.Request.Proto,
+		param.StatusCode,
+		param.Latency,
+		param.BodySize,
+		param.Request.UserAgent(),
+	)
 }

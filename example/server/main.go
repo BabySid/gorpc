@@ -4,14 +4,18 @@ import (
 	"errors"
 	"fmt"
 	"github.com/BabySid/gorpc"
+	h "github.com/BabySid/gorpc/http"
 	"github.com/BabySid/gorpc/http/httpapi"
 	"github.com/BabySid/gorpc/http/httpcfg"
+	"github.com/BabySid/proto/sodor"
 	"io/ioutil"
 	"net/http"
 	"time"
 )
 
 func main() {
+	testSodor()
+	return
 	s := gorpc.NewServer(gorpc.ServerOption{
 		Addr:        ":8888",
 		ClusterName: "test",
@@ -32,6 +36,20 @@ func main() {
 	}()
 	err := s.Run()
 	fmt.Println(err)
+}
+
+func testSodor() {
+	c, err := gorpc.DialHttpClient("http://172.28.17.127:9527", h.WithProtobufCodec())
+	if err != nil {
+		panic(any(err))
+	}
+
+	resp := sodor.ThomasInstance{}
+	req := sodor.ThomasInfo{}
+	req.Id = 2
+	err = c.Call(&resp, "rpc.ShowThomas", &req)
+	fmt.Println(err)
+	fmt.Println(resp)
 }
 
 func testClient() {

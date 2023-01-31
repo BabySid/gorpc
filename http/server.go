@@ -5,6 +5,7 @@ import (
 	"github.com/BabySid/gorpc/http/httpapi"
 	"github.com/BabySid/gorpc/http/httpcfg"
 	"github.com/BabySid/gorpc/http/jsonrpc2"
+	l "github.com/BabySid/gorpc/log"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -29,8 +30,12 @@ type Server struct {
 func NewServer(option httpcfg.ServerOption) *Server {
 	gin.SetMode(gin.ReleaseMode)
 
+	router := gin.New()
+	router.Use(gin.LoggerWithFormatter(l.GinLogFormatter))
+	router.Use(gin.Recovery())
+
 	s := &Server{
-		httpServer:  gin.Default(),
+		httpServer:  router,
 		rpcServer:   jsonrpc2.NewServer(option),
 		getHandles:  make(map[string]httpapi.RpcHandle),
 		postHandles: make(map[string]httpapi.RpcHandle),
