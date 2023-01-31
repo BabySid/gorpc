@@ -41,6 +41,8 @@ type Server struct {
 }
 
 func NewServer(opt ServerOption) *Server {
+	log.InitLog(opt.LogLevel, opt.Rotator)
+
 	s := &Server{
 		option:     opt,
 		httpServer: http.NewServer(opt.HttpOpt),
@@ -62,7 +64,6 @@ func (s *Server) RegisterGrpc(desc *g.ServiceDesc, impl interface{}) error {
 }
 
 func (s *Server) Run() error {
-	log.InitLog(s.option.LogLevel, s.option.Rotator)
 	monitor.InitMonitor(s.option.ClusterName)
 
 	if s.option.BeforeRun != nil {
