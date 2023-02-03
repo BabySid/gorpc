@@ -10,12 +10,9 @@ import (
 	"github.com/BabySid/proto/sodor"
 	"io/ioutil"
 	"net/http"
-	"time"
 )
 
 func main() {
-	testSodor()
-	return
 	s := gorpc.NewServer(gorpc.ServerOption{
 		Addr:        ":8888",
 		ClusterName: "test",
@@ -26,14 +23,14 @@ func main() {
 
 	t := &srv{}
 	s.RegisterPath(http.MethodGet, "/v1/get", t.getHandle)
-	s.RegisterPath(http.MethodPost, "/v1/post", t.postHandle)
+	//s.RegisterPath(http.MethodPost, "/v1/post", t.postHandle)
 	s.RegisterJsonRPC("rpc", &rpcServer{})
 
-	go func() {
-		time.Sleep(5 * time.Second)
-		fmt.Println("begin run Client...")
-		testClient()
-	}()
+	//go func() {
+	//	time.Sleep(5 * time.Second)
+	//	fmt.Println("begin run Client...")
+	//	testClient()
+	//}()
 	err := s.Run()
 	fmt.Println(err)
 }

@@ -50,6 +50,7 @@ func NewServer(option httpcfg.ServerOption) *Server {
 		postHandles: make(map[string]httpapi.RpcHandle),
 	}
 
+	s.setUpBuiltInService()
 	return s
 }
 
