@@ -11,7 +11,6 @@ import (
 	l "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	g "google.golang.org/grpc"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -92,7 +91,7 @@ func (s *Server) Run() error {
 	}()
 
 	s.pidFile = fmt.Sprintf("%s.pid", filepath.Base(os.Args[0]))
-	_ = ioutil.WriteFile(s.pidFile, []byte(strconv.Itoa(os.Getpid())), 0666)
+	_ = os.WriteFile(s.pidFile, []byte(strconv.Itoa(os.Getpid())), 0666)
 
 	l.Infof("gorpc server run on %s", ln.Addr())
 
