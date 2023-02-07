@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type ServerOption struct {
@@ -107,8 +108,19 @@ func (s *Server) Run() error {
 	return nil
 }
 
+var (
+	stopOnce sync.Once
+)
+
 func (s *Server) Stop() error {
-	s.mux.Close()
-	_ = os.Remove(s.pidFile)
+	stopOnce.Do(func() {
+		if s.pidFile != "" {
+			_ = os.Remove(s.pidFile)
+		}
+		if s.mux != nil {
+			s.mux.Close()
+		}
+	})
+
 	return nil
 }
