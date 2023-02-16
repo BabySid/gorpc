@@ -31,8 +31,7 @@ func Dial(rawUrl string) (*Client, error) {
 		return nil, err
 	}
 
-	target := u.Hostname() + u.Port()
-	conn, err := grpc.Dial(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(u.Host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	c := Client{ClientConn: conn}
 	return &c, err
 }
