@@ -2,12 +2,11 @@ package gorpc
 
 import (
 	"fmt"
-	"github.com/BabySid/gorpc/grpc"
-	"github.com/BabySid/gorpc/http"
-	"github.com/BabySid/gorpc/http/httpapi"
-	"github.com/BabySid/gorpc/http/httpcfg"
-	"github.com/BabySid/gorpc/log"
-	"github.com/BabySid/gorpc/monitor"
+	"github.com/BabySid/gorpc/api"
+	"github.com/BabySid/gorpc/internal/grpc"
+	"github.com/BabySid/gorpc/internal/http"
+	"github.com/BabySid/gorpc/internal/log"
+	"github.com/BabySid/gorpc/metrics"
 	l "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	g "google.golang.org/grpc"
@@ -19,52 +18,42 @@ import (
 	"sync"
 )
 
-type ServerOption struct {
-	Addr        string
-	ClusterName string
-	// logs
-	Rotator  *log.Rotator
-	LogLevel string
-
-	HttpOpt httpcfg.ServerOption
-
-	BeforeRun func() error
-}
-
 type Server struct {
-	option ServerOption
+	option api.ServerOption
 
-	httpServer *http.Server
-	grpcServer *grpc.Server
-	mux        cmux.CMux
-	pidFile    string
+	hSvr *http.Server
+	gSvr *grpc.Server
+	mux  cmux.CMux
+
+	pidFile string
+	netFile string
 }
 
-func NewServer(opt ServerOption) *Server {
+func NewServer(opt api.ServerOption) *Server {
 	log.InitLog(opt.LogLevel, opt.Rotator)
 
 	s := &Server{
-		option:     opt,
-		httpServer: http.NewServer(opt.HttpOpt),
-		grpcServer: grpc.NewServer(),
+		option: opt,
+		hSvr:   http.NewServer(opt),
+		gSvr:   grpc.NewServer(),
 	}
 	return s
 }
 
 func (s *Server) RegisterJsonRPC(name string, receiver interface{}) error {
-	return s.httpServer.RegisterJsonRPC(name, receiver)
+	return s.hSvr.RegisterJsonRPC(name, receiver)
 }
 
-func (s *Server) RegisterPath(httpMethod string, path string, handle httpapi.RpcHandle) error {
-	return s.httpServer.RegisterPath(httpMethod, path, handle)
+func (s *Server) RegisterPath(httpMethod string, path string, handle api.RpcHandle) error {
+	return s.hSvr.RegisterPath(httpMethod, path, handle)
 }
 
 func (s *Server) RegisterGrpc(desc *g.ServiceDesc, impl interface{}) error {
-	return s.grpcServer.RegisterGRPC(desc, impl)
+	return s.gSvr.RegisterGRPC(desc, impl)
 }
 
 func (s *Server) Run() error {
-	monitor.InitMonitor(s.option.ClusterName)
+	metrics.InitMonitor(s.option.ClusterName)
 
 	if s.option.BeforeRun != nil {
 		if err := s.option.BeforeRun(); err != nil {
@@ -83,16 +72,19 @@ func (s *Server) Run() error {
 	go func() {
 		grpcL := s.mux.MatchWithWriters(
 			cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
-		_ = s.grpcServer.Run(grpcL)
+		_ = s.gSvr.Run(grpcL)
 	}()
 
 	go func() {
 		httpL := s.mux.Match(cmux.HTTP1Fast())
-		_ = s.httpServer.Run(httpL)
+		_ = s.hSvr.Run(httpL)
 	}()
 
 	s.pidFile = fmt.Sprintf("%s.pid", filepath.Base(os.Args[0]))
 	_ = os.WriteFile(s.pidFile, []byte(strconv.Itoa(os.Getpid())), 0666)
+
+	s.netFile = fmt.Sprintf("%s.net", filepath.Base(os.Args[0]))
+	_ = os.WriteFile(s.netFile, []byte(ln.Addr().String()), 0666)
 
 	l.Infof("gorpc server run on %s", ln.Addr())
 
@@ -116,6 +108,9 @@ func (s *Server) Stop() error {
 	stopOnce.Do(func() {
 		if s.pidFile != "" {
 			_ = os.Remove(s.pidFile)
+		}
+		if s.netFile != "" {
+			_ = os.Remove(s.netFile)
 		}
 		if s.mux != nil {
 			s.mux.Close()
