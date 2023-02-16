@@ -23,19 +23,19 @@ type Message struct {
 	Result  json.RawMessage   `json:"result,omitempty"`
 }
 
-func (msg *Message) isNotification() bool {
+func (msg *Message) IsNotification() bool {
 	return msg.ID == nil && msg.Method != ""
 }
 
-func (msg *Message) isCall() bool {
-	return msg.hasValidID() && msg.Method != ""
+func (msg *Message) IsCall() bool {
+	return msg.HasValidID() && msg.Method != ""
 }
 
-func (msg *Message) isResponse() bool {
-	return msg.hasValidID() && msg.Method == "" && msg.Params == nil && (msg.Result != nil || msg.Error != nil)
+func (msg *Message) IsResponse() bool {
+	return msg.HasValidID() && msg.Method == "" && msg.Params == nil && (msg.Result != nil || msg.Error != nil)
 }
 
-func (msg *Message) hasValidID() bool {
+func (msg *Message) HasValidID() bool {
 	return msg.ID != nil
 }
 

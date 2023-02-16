@@ -33,8 +33,9 @@ func (c *Client) GetType() api.ClientType {
 }
 
 func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}) error {
-	err := c.jsonRpcCli.Call(result, method, args, func(req interface{}) ([]byte, error) {
-		code, body, err := c.doPostHttp(c.rawUrl, req)
+	err := c.jsonRpcCli.Call(result, method, args, func(reqs ...*jsonrpc.Message) ([]byte, error) {
+		gobase.True(len(reqs) == 1)
+		code, body, err := c.doPostHttp(c.rawUrl, reqs[0])
 		if err != nil {
 			return nil, err
 		}
@@ -54,8 +55,9 @@ func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}
 }
 
 func (c *Client) BatchCallJsonRpc(b []api.BatchElem) error {
-	err := c.jsonRpcCli.BatchCall(b, func(req interface{}) ([]byte, error) {
-		code, body, err := c.doPostHttp(c.rawUrl, req)
+	err := c.jsonRpcCli.BatchCall(b, func(reqs ...*jsonrpc.Message) ([]byte, error) {
+		gobase.True(len(reqs) > 0)
+		code, body, err := c.doPostHttp(c.rawUrl, reqs)
 		if err != nil {
 			return nil, err
 		}

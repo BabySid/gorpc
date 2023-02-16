@@ -3,6 +3,7 @@ package websocket
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/internal/jsonrpc"
 	"github.com/gorilla/websocket"
@@ -92,15 +93,47 @@ func (c *Client) GetType() api.ClientType {
 }
 
 func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}) error {
-	//TODO implement me
-	panic("implement me")
-	return nil
+	err := c.jsonRpcCli.Call(result, method, args, func(reqs ...*jsonrpc.Message) ([]byte, error) {
+		gobase.True(len(reqs) == 1)
+		ctx := rpcCallContext{
+			id:   reqs[0].ID,
+			resp: make(chan []byte),
+		}
+		c.respWait.Store(ctx.id, &ctx)
+		err := c.WriteByWs(reqs[0])
+		if err != nil {
+			return nil, err
+		}
+
+		body := <-ctx.resp
+
+		return body, nil
+	})
+
+	return err
 }
 
 func (c *Client) BatchCallJsonRpc(b []api.BatchElem) error {
-	//TODO implement me
-	panic("implement me")
-	return nil
+	err := c.jsonRpcCli.BatchCall(b, func(reqs ...*jsonrpc.Message) ([]byte, error) {
+		gobase.True(len(reqs) > 0)
+
+		for _, req := range reqs {
+			ctx := rpcCallContext{
+				id:   req.ID,
+				resp: make(chan []byte),
+			}
+			c.respWait.Store(ctx.id, &ctx)
+		}
+
+		err := c.WriteByWs(reqs)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, nil
+	})
+
+	return err
 }
 
 func (c *Client) WriteByWs(req interface{}) error {
@@ -128,15 +161,44 @@ func (c *Client) read() {
 			}
 			// response of call? or subscription
 			if c.opt.RawMode {
-				val := reflect.New(c.msgType)
-				_ = json.Unmarshal(msg, val.Interface())
-				c.msgChan.Send(reflect.ValueOf(val.Elem().Interface()))
+				err = c.handleRaw(msg)
+			} else {
+				err = c.handleJsonRpc(msg)
+			}
+			if err != nil {
+				c.errChan <- err
+				return
 			}
 		}
 	}
 }
 
+func (c *Client) handleRaw(msg []byte) error {
+	val := reflect.New(c.msgType)
+	_ = json.Unmarshal(msg, val.Interface())
+	c.msgChan.Send(reflect.ValueOf(val.Elem().Interface()))
+	return nil
+}
+
+func (c *Client) handleJsonRpc(msg []byte) error {
+	msgs, batch, err := jsonrpc.ParseBatchMessage(msg)
+	if err != nil {
+		return err
+	}
+
+	if batch {
+
+	} else {
+		ctx, ok := c.respWait.LoadAndDelete(msgs[0].ID)
+		if ok {
+			ctx.(*rpcCallContext).resp <- msg
+		}
+	}
+
+	return nil
+}
+
 type rpcCallContext struct {
 	id   interface{}
-	resp chan *json.RawMessage
+	resp chan []byte
 }

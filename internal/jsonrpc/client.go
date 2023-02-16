@@ -24,7 +24,7 @@ func NewClient(ct codec.CodecType) *Client {
 	return &c
 }
 
-type MessageReader func(req interface{}) ([]byte, error)
+type MessageReader func(reqs ...*Message) ([]byte, error)
 
 var (
 	ErrNoResult = errors.New("no result in JSON-RPC response")
@@ -82,7 +82,7 @@ func (c *Client) BatchCall(b []api.BatchElem, reader MessageReader) error {
 		byID[msg.ID] = i
 	}
 
-	data, err := reader(msgs)
+	data, err := reader(msgs...)
 	if err != nil {
 		return err
 	}

@@ -18,7 +18,7 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 	return token.IsExported(t.Name()) || t.PkgPath() == ""
 }
 
-func parseBatchMessage(b []byte) ([]*Message, bool, error) {
+func ParseBatchMessage(b []byte) ([]*Message, bool, error) {
 	var rawMsg json.RawMessage
 	if err := json.Unmarshal(b, &rawMsg); err != nil {
 		return nil, false, err

@@ -145,13 +145,13 @@ func suitableMethods(typ reflect.Type) map[string]*methodType {
 }
 
 func (server *Server) Call(ctx api.Context, data []byte) interface{} {
-	msgs, batch, err := parseBatchMessage(data)
+	msgs, batch, err := ParseBatchMessage(data)
 	if err != nil {
 		return api.NewErrorJsonRpcResponseWithError(nil,
 			api.NewJsonRpcError(api.ParseError, api.SysCodeMap[api.ParseError], err.Error()))
 	}
 
-	// todo handle msg.isNotification() refer go-ethereum/rpc/handler.go
+	// todo handle msg.IsNotification() refer go-ethereum/rpc/handler.go
 	if batch {
 		if len(msgs) == 0 {
 			return api.NewErrorJsonRpcResponseWithError(nil,
