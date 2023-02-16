@@ -20,16 +20,12 @@ var (
 type Client struct {
 	api.ClientAdapter
 
-	*http.Client
+	httpHandle *http.Client
 	jsonRpcCli *jsonrpc.Client
 
 	rawUrl string // e.g. https://localhost:8080/path
 	opt    api.ClientOption
 	header http.Header
-}
-
-func (c *Client) Close() error {
-	return nil
 }
 
 func (c *Client) GetType() api.ClientType {
@@ -104,7 +100,7 @@ func Dial(rawUrl string, opt api.ClientOption) (*Client, error) {
 
 	c := &Client{
 		rawUrl:     rawUrl,
-		Client:     new(http.Client),
+		httpHandle: new(http.Client),
 		jsonRpcCli: jsonrpc.NewClient(opt.Codec),
 		header:     headers,
 		opt:        opt,
@@ -132,7 +128,7 @@ func (c *Client) doGetHttp(url string) (int, io.ReadCloser, error) {
 	}
 	req.Header = c.header.Clone()
 
-	resp, err := c.Do(req)
+	resp, err := c.httpHandle.Do(req)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -146,15 +142,15 @@ func (c *Client) doPostHttp(url string, msg interface{}) (int, io.ReadCloser, er
 		return 0, nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, url, io.NopCloser(bytes.NewReader(body)))
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return 0, nil, err
 	}
 	req.ContentLength = int64(len(body))
-	req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
+	//req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
 	req.Header = c.header.Clone()
 
-	resp, err := c.Do(req)
+	resp, err := c.httpHandle.Do(req)
 	if err != nil {
 		return 0, nil, err
 	}

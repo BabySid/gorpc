@@ -130,7 +130,7 @@ func (c *Client) newMessage(method string, paramsIn interface{}) (*Message, erro
 			if msg.Params, err = json.Marshal(paramsIn); err != nil {
 				return nil, err
 			}
-		case c.ct:
+		case codec.ProtobufCodec:
 			if msg.Params, err = codec.DefaultProtoMarshal.Marshal(paramsIn); err != nil {
 				return nil, err
 			}

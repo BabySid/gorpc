@@ -35,7 +35,7 @@ func main() {
 }
 
 func testSodor() {
-	c, err := gorpc.DialHttp("http://172.28.17.127:9527", api.ClientOption{Codec: codec.ProtobufCodec})
+	c, err := gorpc.Dial("http://172.28.17.127:9527", api.ClientOption{Codec: codec.ProtobufCodec})
 	if err != nil {
 		panic(any(err))
 	}
@@ -49,7 +49,7 @@ func testSodor() {
 }
 
 func testClient() {
-	c, err := gorpc.DialHttp("http://localhost:8888/_jsonrpc_", api.ClientOption{Codec: codec.JsonCodec})
+	c, err := gorpc.Dial("http://localhost:8888/_jsonrpc_", api.ClientOption{Codec: codec.JsonCodec})
 	if err != nil {
 		panic(any(err))
 	}
