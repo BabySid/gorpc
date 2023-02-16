@@ -40,7 +40,7 @@ func (j *JsonRpcError) Error() string {
 	return fmt.Sprintf("jsonError(code: %d, message: %s, data: %v)", j.Code, j.Message, j.Data)
 }
 
-func NewJsonRpcErr(c int, data interface{}) *JsonRpcError {
+func NewJsonRpcErrFromCode(c int, data interface{}) *JsonRpcError {
 	msg := SysCodeMap[c]
 	gobase.True(msg != "")
 	return NewJsonRpcError(c, msg, data)
