@@ -1,7 +1,6 @@
 package jsonrpc
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,7 +8,6 @@ import (
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/codec"
 	"reflect"
-	"strconv"
 	"sync/atomic"
 )
 
@@ -24,7 +22,7 @@ func NewClient(ct codec.CodecType) *Client {
 	return &c
 }
 
-type MessageReader func(reqs ...*Message) ([]byte, error)
+type MessageReader func(reqs ...*Message) ([]*Message, error)
 
 var (
 	ErrNoResult = errors.New("no result in JSON-RPC response")
@@ -39,62 +37,54 @@ func (c *Client) Call(result interface{}, method string, args interface{}, reade
 		return err
 	}
 
-	data, err := reader(msg)
+	resps, err := reader(msg)
 	if err != nil {
 		return err
 	}
 
-	var resp Message
-	if err = json.NewDecoder(bytes.NewReader(data)).Decode(&resp); err != nil {
-		return err
-	}
+	gobase.True(len(resps) == 1)
 
-	if resp.Error != nil {
-		return resp.Error
+	if resps[0].Error != nil {
+		return resps[0].Error
 	}
-	if len(resp.Result) == 0 {
+	if len(resps[0].Result) == 0 {
 		return ErrNoResult
 	}
 
 	switch c.ct {
 	case codec.JsonCodec:
-		return json.Unmarshal(resp.Result, result)
+		return json.Unmarshal(resps[0].Result, result)
 	case codec.ProtobufCodec:
-		return codec.DefaultProtoMarshal.Unmarshal(resp.Result, result)
+		return codec.DefaultProtoMarshal.Unmarshal(resps[0].Result, result)
 	default:
 		gobase.AssertHere()
 	}
 	return nil
 }
 
-func (c *Client) BatchCall(b []api.BatchElem, reader MessageReader) error {
+func (c *Client) BatchCall(batch []api.BatchElem, reader MessageReader) error {
 	var (
-		msgs = make([]*Message, len(b))
-		byID = make(map[interface{}]int, len(b))
+		msgs = make([]*Message, len(batch))
+		byID = make(map[string]int, len(batch))
 	)
 
-	for i, elem := range b {
+	for i, elem := range batch {
 		msg, err := c.newMessage(elem.Method, elem.Args)
 		if err != nil {
 			return err
 		}
 		msgs[i] = msg
-		byID[msg.ID] = i
+		byID[fmt.Sprintf("%v", msg.ID)] = i
 	}
 
-	data, err := reader(msgs...)
+	resps, err := reader(msgs...)
 	if err != nil {
 		return err
 	}
 
-	var resp []Message
-	if err = json.NewDecoder(bytes.NewReader(data)).Decode(&resp); err != nil {
-		return err
-	}
-
-	for n := 0; n < len(resp) && err == nil; n++ {
-		res := resp[n]
-		elem := &b[byID[res.ID]]
+	for n := 0; n < len(resps) && err == nil; n++ {
+		res := resps[n]
+		elem := &batch[byID[fmt.Sprintf("%v", res.ID)]]
 		if res.Error != nil {
 			elem.Error = res.Error
 			continue
@@ -116,9 +106,10 @@ func (c *Client) BatchCall(b []api.BatchElem, reader MessageReader) error {
 	return err
 }
 
-func (c *Client) nextID() json.RawMessage {
+func (c *Client) nextID() uint32 {
 	id := atomic.AddUint32(&c.idCounter, 1)
-	return strconv.AppendUint(nil, uint64(id), 10)
+	return id
+	//return strconv.AppendUint(nil, uint64(id), 10)
 }
 
 func (c *Client) newMessage(method string, paramsIn interface{}) (*Message, error) {

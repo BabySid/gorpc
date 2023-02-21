@@ -34,5 +34,12 @@ type ClientOption struct {
 	// websocket
 	RevChan interface{}
 	// return raw response for subscription because proto of response on some server is not jsonrpc
-	RawMode bool
+	WebSocketMode WebSocketMode
 }
+
+type WebSocketMode int
+
+const (
+	WSM_RawJson = iota
+	WSM_JsonRpc
+)

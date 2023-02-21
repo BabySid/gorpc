@@ -93,11 +93,11 @@ func (c *Client) GetType() api.ClientType {
 }
 
 func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}) error {
-	err := c.jsonRpcCli.Call(result, method, args, func(reqs ...*jsonrpc.Message) ([]byte, error) {
+	err := c.jsonRpcCli.Call(result, method, args, func(reqs ...*jsonrpc.Message) ([]*jsonrpc.Message, error) {
 		gobase.True(len(reqs) == 1)
 		ctx := rpcCallContext{
 			id:   reqs[0].ID,
-			resp: make(chan []byte),
+			resp: make(chan *jsonrpc.Message),
 		}
 		c.respWait.Store(ctx.id, &ctx)
 		err := c.WriteByWs(reqs[0])
@@ -107,21 +107,23 @@ func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}
 
 		body := <-ctx.resp
 
-		return body, nil
+		return []*jsonrpc.Message{body}, nil
 	})
 
 	return err
 }
 
 func (c *Client) BatchCallJsonRpc(b []api.BatchElem) error {
-	err := c.jsonRpcCli.BatchCall(b, func(reqs ...*jsonrpc.Message) ([]byte, error) {
+	err := c.jsonRpcCli.BatchCall(b, func(reqs ...*jsonrpc.Message) ([]*jsonrpc.Message, error) {
 		gobase.True(len(reqs) > 0)
 
-		for _, req := range reqs {
+		ctxs := make([]*rpcCallContext, len(reqs))
+		for i, req := range reqs {
 			ctx := rpcCallContext{
 				id:   req.ID,
-				resp: make(chan []byte),
+				resp: make(chan *jsonrpc.Message),
 			}
+			ctxs[i] = &ctx
 			c.respWait.Store(ctx.id, &ctx)
 		}
 
@@ -130,7 +132,12 @@ func (c *Client) BatchCallJsonRpc(b []api.BatchElem) error {
 			return nil, err
 		}
 
-		return nil, nil
+		rs := make([]*jsonrpc.Message, len(ctxs))
+		for i, ctx := range ctxs {
+			body := <-ctx.resp
+			rs[i] = body
+		}
+		return rs, nil
 	})
 
 	return err
@@ -160,11 +167,15 @@ func (c *Client) read() {
 				return
 			}
 			// response of call? or subscription
-			if c.opt.RawMode {
+			switch c.opt.WebSocketMode {
+			case api.WSM_RawJson:
 				err = c.handleRaw(msg)
-			} else {
+			case api.WSM_JsonRpc:
 				err = c.handleJsonRpc(msg)
+			default:
+				gobase.AssertHere()
 			}
+
 			if err != nil {
 				c.errChan <- err
 				return
@@ -175,7 +186,10 @@ func (c *Client) read() {
 
 func (c *Client) handleRaw(msg []byte) error {
 	val := reflect.New(c.msgType)
-	_ = json.Unmarshal(msg, val.Interface())
+	err := json.Unmarshal(msg, val.Interface())
+	if err != nil {
+		return err
+	}
 	c.msgChan.Send(reflect.ValueOf(val.Elem().Interface()))
 	return nil
 }
@@ -187,12 +201,31 @@ func (c *Client) handleJsonRpc(msg []byte) error {
 	}
 
 	if batch {
-
+		for _, m := range msgs {
+			if err = c.handleJsonRpcMessage(m); err != nil {
+				return err
+			}
+		}
 	} else {
-		ctx, ok := c.respWait.LoadAndDelete(msgs[0].ID)
+		return c.handleJsonRpcMessage(msgs[0])
+	}
+
+	return nil
+}
+
+func (c *Client) handleJsonRpcMessage(msg *jsonrpc.Message) error {
+	if msg.IsResponse() {
+		ctx, ok := c.respWait.LoadAndDelete(msg.ID)
 		if ok {
 			ctx.(*rpcCallContext).resp <- msg
 		}
+	} else if msg.IsNotification() {
+		val := reflect.New(c.msgType)
+		err := json.Unmarshal(msg.Params, val.Interface())
+		if err != nil {
+			return err
+		}
+		c.msgChan.Send(reflect.ValueOf(val.Elem().Interface()))
 	}
 
 	return nil
@@ -200,5 +233,5 @@ func (c *Client) handleJsonRpc(msg []byte) error {
 
 type rpcCallContext struct {
 	id   interface{}
-	resp chan []byte
+	resp chan *jsonrpc.Message
 }

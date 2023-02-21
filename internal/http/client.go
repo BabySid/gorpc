@@ -33,7 +33,7 @@ func (c *Client) GetType() api.ClientType {
 }
 
 func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}) error {
-	err := c.jsonRpcCli.Call(result, method, args, func(reqs ...*jsonrpc.Message) ([]byte, error) {
+	err := c.jsonRpcCli.Call(result, method, args, func(reqs ...*jsonrpc.Message) ([]*jsonrpc.Message, error) {
 		gobase.True(len(reqs) == 1)
 		code, body, err := c.doPostHttp(c.rawUrl, reqs[0])
 		if err != nil {
@@ -49,13 +49,18 @@ func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}
 		if err != nil {
 			return nil, err
 		}
-		return data, nil
+
+		var resp jsonrpc.Message
+		if err = json.NewDecoder(bytes.NewReader(data)).Decode(&resp); err != nil {
+			return nil, err
+		}
+		return []*jsonrpc.Message{&resp}, nil
 	})
 	return err
 }
 
 func (c *Client) BatchCallJsonRpc(b []api.BatchElem) error {
-	err := c.jsonRpcCli.BatchCall(b, func(reqs ...*jsonrpc.Message) ([]byte, error) {
+	err := c.jsonRpcCli.BatchCall(b, func(reqs ...*jsonrpc.Message) ([]*jsonrpc.Message, error) {
 		gobase.True(len(reqs) > 0)
 		code, body, err := c.doPostHttp(c.rawUrl, reqs)
 		if err != nil {
@@ -71,7 +76,11 @@ func (c *Client) BatchCallJsonRpc(b []api.BatchElem) error {
 		if err != nil {
 			return nil, err
 		}
-		return data, nil
+		var resps []*jsonrpc.Message
+		if err = json.NewDecoder(bytes.NewReader(data)).Decode(&resps); err != nil {
+			return nil, err
+		}
+		return resps, nil
 	})
 
 	return err
