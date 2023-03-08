@@ -40,6 +40,6 @@ type ClientOption struct {
 type WebSocketMode int
 
 const (
-	WSM_RawJson = iota
-	WSM_JsonRpc
+	WSM_JsonRpc = iota
+	WSM_RawJson
 )

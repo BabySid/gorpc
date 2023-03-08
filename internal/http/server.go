@@ -7,6 +7,7 @@ import (
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/internal/gin"
 	"github.com/BabySid/gorpc/internal/jsonrpc"
+	"github.com/BabySid/gorpc/internal/websocket"
 	"github.com/BabySid/gorpc/util"
 	g "github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -195,7 +196,13 @@ func (s *Server) processPostRequest(c *g.Context) {
 }
 
 func (s *Server) processJsonRpcByWS(c *g.Context) {
-	c.JSON(http.StatusOK, "todo")
+	srv, err := websocket.NewServer(c.Writer, c.Request)
+	if err != nil {
+		c.String(http.StatusBadRequest, "websocket.NewServer: %s", err)
+		return
+	}
+	defer srv.Close()
+	srv.Run()
 }
 
 func (s *Server) processJsonRpc(c *g.Context) {
