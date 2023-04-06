@@ -92,11 +92,15 @@ func (c *Client) GetType() api.ClientType {
 	return api.WsClient
 }
 
+func (c *Client) ErrFromWS() chan error {
+	return c.errChan
+}
+
 func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}) error {
 	err := c.jsonRpcCli.Call(result, method, args, func(reqs ...*jsonrpc.Message) ([]*jsonrpc.Message, error) {
 		gobase.True(len(reqs) == 1)
 		ctx := rpcCallContext{
-			id:   reqs[0].ID,
+			id:   string(reqs[0].ID),
 			resp: make(chan *jsonrpc.Message),
 		}
 		c.respWait.Store(ctx.id, &ctx)
@@ -120,7 +124,7 @@ func (c *Client) BatchCallJsonRpc(b []api.BatchElem) error {
 		ctxs := make([]*rpcCallContext, len(reqs))
 		for i, req := range reqs {
 			ctx := rpcCallContext{
-				id:   req.ID,
+				id:   string(req.ID),
 				resp: make(chan *jsonrpc.Message),
 			}
 			ctxs[i] = &ctx
@@ -175,7 +179,6 @@ func (c *Client) read() {
 			default:
 				gobase.AssertHere()
 			}
-
 			if err != nil {
 				c.errChan <- err
 				return
@@ -215,13 +218,19 @@ func (c *Client) handleJsonRpc(msg []byte) error {
 
 func (c *Client) handleJsonRpcMessage(msg *jsonrpc.Message) error {
 	if msg.IsResponse() {
-		ctx, ok := c.respWait.LoadAndDelete(msg.ID)
+		ctx, ok := c.respWait.LoadAndDelete(string(msg.ID))
 		if ok {
 			ctx.(*rpcCallContext).resp <- msg
 		}
 	} else if msg.IsNotification() {
+		var subResult api.SubscriptionResult
+		err := json.Unmarshal(msg.Params, &subResult)
+		if err != nil {
+			return err
+		}
+
 		val := reflect.New(c.msgType)
-		err := json.Unmarshal(msg.Params, val.Interface())
+		err = json.Unmarshal(subResult.Result, val.Interface())
 		if err != nil {
 			return err
 		}
@@ -232,6 +241,6 @@ func (c *Client) handleJsonRpcMessage(msg *jsonrpc.Message) error {
 }
 
 type rpcCallContext struct {
-	id   interface{}
+	id   string
 	resp chan *jsonrpc.Message
 }

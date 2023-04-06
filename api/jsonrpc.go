@@ -8,6 +8,32 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type SubscriptionResult struct {
+	ID     interface{}     `json:"subscription"`
+	Result json.RawMessage `json:"result,omitempty"`
+}
+
+type SubscriptionNotice struct {
+	Version string             `json:"jsonrpc"`
+	Method  string             `json:"method"`
+	Params  SubscriptionResult `json:"params,omitempty"`
+}
+
+func NewSubscriptionNotice(method string, id interface{}, result interface{}) *SubscriptionNotice {
+	var rs json.RawMessage
+	var err error
+	if msg, ok := result.(proto.Message); ok {
+		rs, err = codec.DefaultProtoMarshal.Marshal(msg)
+	} else {
+		rs, err = codec.StdReplyEncoder(result)
+	}
+	if err != nil {
+		return nil
+	}
+	resp := &SubscriptionNotice{Version: Version, Method: method, Params: SubscriptionResult{ID: id, Result: rs}}
+	return resp
+}
+
 type JsonRpcRequest struct {
 	Version string `json:"jsonrpc"`
 	Method  string `json:"method"`

@@ -30,14 +30,24 @@ type Client interface {
 	CallJsonRpc(result interface{}, method string, args interface{}) error
 	BatchCallJsonRpc(b []BatchElem) error
 	RawCallHttp(method string, path string, body interface{}) (int, io.ReadCloser, error)
-	WriteByWs(req interface{}) error
-	UnderlyingHandle() interface{}
 	Close() error
+
+	// The WriteByWs ending with "WS" are only intended for WebSocket clients
+	WriteByWs(req interface{}) error
+	ErrFromWS() chan error
+
+	// The UnderlyingHandle is only intended for grpc clients now
+	UnderlyingHandle() interface{}
 }
 
 var _ Client = (*ClientAdapter)(nil)
 
 type ClientAdapter struct{}
+
+func (c ClientAdapter) ErrFromWS() chan error {
+	//TODO implement me
+	panic("implement me")
+}
 
 func (c ClientAdapter) WriteByWs(req interface{}) error {
 	//TODO implement me

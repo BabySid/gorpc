@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc/api"
+	"github.com/BabySid/gorpc/internal/ctx"
 	"github.com/BabySid/gorpc/internal/gin"
 	"github.com/BabySid/gorpc/internal/jsonrpc"
 	"github.com/BabySid/gorpc/internal/websocket"
@@ -22,6 +23,7 @@ import (
 )
 
 type Server struct {
+	opt        api.ServerOption
 	httpServer *gin.Server
 
 	rpcServer *jsonrpc.Server
@@ -33,6 +35,7 @@ type Server struct {
 
 func NewServer(option api.ServerOption) *Server {
 	s := &Server{
+		opt:         option,
 		httpServer:  gin.NewServer(),
 		rpcServer:   jsonrpc.NewServer(jsonrpc.Option{CodeType: option.Codec}),
 		getHandles:  make(map[string]api.RpcHandle),
@@ -45,7 +48,7 @@ func NewServer(option api.ServerOption) *Server {
 
 func (s *Server) setUpBuiltInService() {
 	s.httpServer.POST(api.BuiltInPathJsonRPC, s.processJsonRpc)
-	s.httpServer.POST(api.BuiltInPathJsonWS, s.processJsonRpcByWS)
+	s.httpServer.GET(api.BuiltInPathJsonWS, s.processJsonRpcByWS)
 	s.httpServer.GET(api.BuiltInPathMetrics, g.WrapH(promhttp.Handler()))
 
 	appName := filepath.Base(os.Args[0])
@@ -146,7 +149,7 @@ func (s *Server) processGetRequest(c *g.Context) {
 	}
 
 	code := api.Success
-	ctx := newAPIContext(path, id, 0, c)
+	ctx := ctx.NewAPIContext(path, id, 0, c)
 	defer func() {
 		ctx.EndRequest(code)
 	}()
@@ -183,7 +186,7 @@ func (s *Server) processPostRequest(c *g.Context) {
 	}
 
 	code := api.Success
-	ctx := newAPIContext(path, req.Id, len(body), c)
+	ctx := ctx.NewAPIContext(path, req.Id, len(body), c)
 	defer func() {
 		ctx.EndRequest(code)
 	}()
@@ -196,7 +199,7 @@ func (s *Server) processPostRequest(c *g.Context) {
 }
 
 func (s *Server) processJsonRpcByWS(c *g.Context) {
-	srv, err := websocket.NewServer(c.Writer, c.Request)
+	srv, err := websocket.NewServer(s.rpcServer, c)
 	if err != nil {
 		c.String(http.StatusBadRequest, "websocket.NewServer: %s", err)
 		return
@@ -213,7 +216,7 @@ func (s *Server) processJsonRpc(c *g.Context) {
 		return
 	}
 
-	ctx := newAPIContext("jsonRpc2", uuid.New().String(), len(body), c)
+	ctx := ctx.NewAPIContext("jsonRpc2", uuid.New().String(), len(body), c)
 	defer func() {
 		ctx.EndRequest(api.Success)
 	}()

@@ -8,6 +8,7 @@ import (
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/codec"
 	"reflect"
+	"strconv"
 	"sync/atomic"
 )
 
@@ -74,7 +75,7 @@ func (c *Client) BatchCall(batch []api.BatchElem, reader MessageReader) error {
 			return err
 		}
 		msgs[i] = msg
-		byID[fmt.Sprintf("%v", msg.ID)] = i
+		byID[string(msg.ID)] = i
 	}
 
 	resps, err := reader(msgs...)
@@ -84,7 +85,7 @@ func (c *Client) BatchCall(batch []api.BatchElem, reader MessageReader) error {
 
 	for n := 0; n < len(resps) && err == nil; n++ {
 		res := resps[n]
-		elem := &batch[byID[fmt.Sprintf("%v", res.ID)]]
+		elem := &batch[byID[string(res.ID)]]
 		if res.Error != nil {
 			elem.Error = res.Error
 			continue
@@ -106,10 +107,9 @@ func (c *Client) BatchCall(batch []api.BatchElem, reader MessageReader) error {
 	return err
 }
 
-func (c *Client) nextID() uint32 {
+func (c *Client) nextID() json.RawMessage {
 	id := atomic.AddUint32(&c.idCounter, 1)
-	return id
-	//return strconv.AppendUint(nil, uint64(id), 10)
+	return strconv.AppendUint(nil, uint64(id), 10)
 }
 
 func (c *Client) newMessage(method string, paramsIn interface{}) (*Message, error) {

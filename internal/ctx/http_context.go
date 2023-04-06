@@ -1,4 +1,4 @@
-package http
+package ctx
 
 import (
 	"fmt"
@@ -19,6 +19,16 @@ type APIContext struct {
 	id      interface{}
 
 	ctx *gin.Context
+	kv  map[string]any
+}
+
+func (ctx *APIContext) WithValue(key string, value any) {
+	ctx.kv[key] = value
+}
+
+func (ctx *APIContext) Value(key string) (any, bool) {
+	v, ok := ctx.kv[key]
+	return v, ok
 }
 
 func (ctx *APIContext) ID() interface{} {
@@ -27,15 +37,15 @@ func (ctx *APIContext) ID() interface{} {
 
 func DefaultAPIContext(name string) *APIContext {
 	traceID := fmt.Sprintf("%s_%s", name, uuid.New().String())
-	ctx := &APIContext{"", time.Now(), traceID, nil}
+	ctx := &APIContext{name: "", revTime: time.Now(), id: traceID, ctx: nil, kv: make(map[string]any)}
 	return ctx
 }
 
-func newAPIContext(name string, id interface{}, reqSize int, c *gin.Context) *APIContext {
+func NewAPIContext(name string, id interface{}, reqSize int, c *gin.Context) *APIContext {
 	metrics.ProcessingRequests.WithLabelValues(metrics.GetCluster(), name).Inc()
 	metrics.RealTimeRequestBodySize.WithLabelValues(metrics.GetCluster(), name).Set(float64(reqSize))
-	ctx := &APIContext{name, time.Now(), id, c}
-	ctx.Log("newAPIContext: reqSize[%d] clientIP[%s]", reqSize, ctx.ClientIP())
+	ctx := &APIContext{name: name, revTime: time.Now(), id: id, ctx: c, kv: make(map[string]any)}
+	ctx.Log("NewAPIContext: reqSize[%d] clientIP[%s]", reqSize, ctx.ClientIP())
 	return ctx
 }
 
