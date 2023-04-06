@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"errors"
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/internal/ctx"
 	"github.com/BabySid/gorpc/internal/jsonrpc"
@@ -21,6 +22,9 @@ type Server struct {
 	closeCh   chan struct{}
 	pingReset chan struct{}
 
+	lastErr   error
+	notifyErr chan error
+
 	rpcServer *jsonrpc.Server
 
 	ctx *gin.Context
@@ -40,6 +44,7 @@ func NewServer(rpc *jsonrpc.Server, ctx *gin.Context) (*Server, error) {
 	s.readOp = make(chan []byte)
 	s.closeCh = make(chan struct{})
 	s.pingReset = make(chan struct{})
+	s.notifyErr = make(chan error)
 	s.conn.SetReadLimit(wsMessageSizeLimit)
 	s.conn.SetPongHandler(func(_ string) error {
 		s.conn.SetReadDeadline(time.Time{})
@@ -65,11 +70,15 @@ func (s *Server) WriteJson(v interface{}) error {
 }
 
 func (s *Server) Close() {
-	log.Infof("close websocket server: clientIP[%s]", s.ctx.ClientIP())
-
 	close(s.closeCh)
 	_ = s.conn.Close()
 	s.wg.Wait()
+
+	if s.lastErr == nil {
+		s.lastErr = errors.New("server close")
+	}
+	s.notifyErr <- s.lastErr
+	log.Infof("close websocket server: clientIP[%s]", s.ctx.ClientIP())
 }
 
 func (s *Server) pingLoop() {
@@ -102,7 +111,8 @@ func (s *Server) Run() {
 		select {
 		case <-s.closeCh:
 			return
-		case <-s.readErr:
+		case err := <-s.readErr:
+			s.lastErr = err
 			return
 		case op := <-s.readOp:
 			_ = s.handle(op)

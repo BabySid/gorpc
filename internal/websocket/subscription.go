@@ -8,6 +8,10 @@ type notifier struct {
 	s *Server
 }
 
+func (n *notifier) Err() chan error {
+	return n.s.notifyErr
+}
+
 func (n *notifier) Notify(sub *api.SubscriptionNotice) {
 	_ = n.s.WriteJson(sub)
 }

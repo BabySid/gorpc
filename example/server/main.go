@@ -7,6 +7,7 @@ import (
 	"github.com/BabySid/gorpc"
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/codec"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"time"
 )
@@ -104,8 +105,15 @@ func (i *rpcServer) Sub(ctx api.Context, params *Params) (*SubResult, *api.JsonR
 
 	go func() {
 		for {
-			time.Sleep(3 * time.Second)
-			notifier.Notify(api.NewSubscriptionNotice("Sub", "0x5e7c550061dad01c4f59eab18b2e055", SubData{DT: gobase.FormatDateTime()}))
+			select {
+			case err := <-notifier.Err():
+				log.Infof("err found: %v", err)
+				return
+			default:
+				time.Sleep(3 * time.Second)
+				notifier.Notify(api.NewSubscriptionNotice("Sub", "0x5e7c550061dad01c4f59eab18b2e055", SubData{DT: gobase.FormatDateTime()}))
+			}
+
 		}
 
 	}()

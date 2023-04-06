@@ -52,6 +52,9 @@ func testClient() {
 
 	for {
 		select {
+		case err := <-c.ErrFromWS():
+			fmt.Println("err from ws: ", err)
+			return
 		case data := <-recv:
 			fmt.Println("rev from chan: ", data)
 		}
