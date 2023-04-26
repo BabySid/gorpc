@@ -65,8 +65,8 @@ func Dial(rawUrl string, opt api.ClientOption) (*Client, error) {
 		jsonRpcCli: jsonrpc.NewClient(opt.Codec),
 		msgType:    chanVal.Type().Elem(),
 		msgChan:    chanVal,
-		errChan:    make(chan error),
-		close:      make(chan struct{}),
+		errChan:    make(chan error, 1),
+		close:      make(chan struct{}, 1),
 		respWait:   sync.Map{},
 	}
 
