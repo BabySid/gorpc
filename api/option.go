@@ -28,8 +28,16 @@ const (
 	BuiltInPathMetrics = "_metrics_"
 )
 
+type BasicAuth struct {
+	User   string
+	Passwd string
+}
+
 type ClientOption struct {
 	Codec codec.CodecType
+
+	// auth
+	Basic *BasicAuth
 
 	// websocket
 	RevChan interface{}

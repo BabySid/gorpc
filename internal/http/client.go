@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -108,6 +109,10 @@ func Dial(rawUrl string, opt api.ClientOption) (*Client, error) {
 	headers := http.Header{}
 	headers.Set("accept", "application/json")
 	headers.Set("content-type", "application/json")
+	if opt.Basic != nil {
+		auth := base64.StdEncoding.EncodeToString([]byte(opt.Basic.User + ":" + opt.Basic.Passwd))
+		headers.Set("Authorization", "Basic "+auth)
+	}
 
 	c := &Client{
 		rawUrl:     rawUrl,
