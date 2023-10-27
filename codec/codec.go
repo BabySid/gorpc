@@ -62,7 +62,7 @@ var (
 	DefaultProtoMarshal = &runtime.JSONPb{
 		MarshalOptions: protojson.MarshalOptions{
 			EmitUnpopulated: true,
-			UseEnumNumbers:  true,
+			UseEnumNumbers:  false,
 			UseProtoNames:   true,
 		},
 		UnmarshalOptions: protojson.UnmarshalOptions{
