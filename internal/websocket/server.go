@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"errors"
+	"fmt"
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/internal/ctx"
 	"github.com/BabySid/gorpc/internal/jsonrpc"
@@ -28,6 +29,8 @@ type Server struct {
 	rpcServer *jsonrpc.Server
 
 	ctx *gin.Context
+
+	clientIP string
 }
 
 func NewServer(rpc *jsonrpc.Server, ctx *gin.Context) (*Server, error) {
@@ -46,14 +49,17 @@ func NewServer(rpc *jsonrpc.Server, ctx *gin.Context) (*Server, error) {
 	s.pingReset = make(chan struct{})
 	s.notifyErr = make(chan error)
 	s.conn.SetReadLimit(wsMessageSizeLimit)
-	s.conn.SetPongHandler(func(_ string) error {
-		s.conn.SetReadDeadline(time.Time{})
+	s.conn.SetPongHandler(func(v string) error {
+		log.Tracef("recv pong from [%s]: %s", s.clientIP, v)
+		_ = s.conn.SetReadDeadline(time.Time{})
 		return nil
 	})
 
 	s.rpcServer = rpc
 
 	s.ctx = ctx
+
+	s.clientIP = ctx.ClientIP()
 
 	s.wg.Add(1)
 	go s.pingLoop()
@@ -75,7 +81,7 @@ func (s *Server) Close() {
 	s.wg.Wait()
 
 	if s.lastErr == nil {
-		s.lastErr = errors.New("server close")
+		s.lastErr = errors.New(fmt.Sprintf("server close from [%s]", s.clientIP))
 	}
 	s.notifyErr <- s.lastErr
 	log.Infof("close websocket server: clientIP[%s]", s.ctx.ClientIP())
@@ -89,6 +95,7 @@ func (s *Server) pingLoop() {
 	for {
 		select {
 		case <-s.closeCh:
+			log.Tracef("recv closeCh in pingLoop from [%s]", s.clientIP)
 			return
 		case <-s.pingReset:
 			if !timer.Stop() {
@@ -110,8 +117,10 @@ func (s *Server) Run() {
 	for {
 		select {
 		case <-s.closeCh:
+			log.Tracef("recv closeCh in Run from [%s]", s.clientIP)
 			return
 		case err := <-s.readErr:
+			log.Tracef("recv readErr in Run from [%s]. err=%v", s.clientIP, err)
 			s.lastErr = err
 			return
 		case op := <-s.readOp:
@@ -124,6 +133,7 @@ func (s *Server) read() {
 	for {
 		_, data, err := s.conn.ReadMessage()
 		if err != nil {
+			log.Tracef("recv readErr in read() from [%s]. err=%v", s.clientIP, err)
 			s.readErr <- err
 			return
 		}

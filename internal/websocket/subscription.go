@@ -12,6 +12,6 @@ func (n *notifier) Err() chan error {
 	return n.s.notifyErr
 }
 
-func (n *notifier) Notify(sub *api.SubscriptionNotice) {
-	_ = n.s.WriteJson(sub)
+func (n *notifier) Notify(sub *api.SubscriptionNotice) error {
+	return n.s.WriteJson(sub)
 }

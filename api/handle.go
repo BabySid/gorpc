@@ -4,7 +4,7 @@ package api
 type RpcHandle func(ctx Context, params interface{}) *JsonRpcResponse
 
 type Notifier interface {
-	Notify(sub *SubscriptionNotice)
+	Notify(sub *SubscriptionNotice) error
 	Err() chan error
 }
 
