@@ -50,7 +50,6 @@ func NewServer(rpc *jsonrpc.Server, ctx *gin.Context) (*Server, error) {
 	s.notifyErr = make(chan error)
 	s.conn.SetReadLimit(wsMessageSizeLimit)
 	s.conn.SetPongHandler(func(v string) error {
-		log.Tracef("recv pong from [%s]: %s", s.clientIP, v)
 		_ = s.conn.SetReadDeadline(time.Time{})
 		return nil
 	})
@@ -67,6 +66,7 @@ func NewServer(rpc *jsonrpc.Server, ctx *gin.Context) (*Server, error) {
 }
 
 func (s *Server) WriteJson(v interface{}) error {
+	_ = s.conn.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 	err := s.conn.WriteJSON(v)
 	if err == nil {
 		s.pingReset <- struct{}{}
@@ -95,7 +95,6 @@ func (s *Server) pingLoop() {
 	for {
 		select {
 		case <-s.closeCh:
-			log.Tracef("recv closeCh in pingLoop from [%s]", s.clientIP)
 			return
 		case <-s.pingReset:
 			if !timer.Stop() {
@@ -120,7 +119,6 @@ func (s *Server) Run() {
 			log.Tracef("recv closeCh in Run from [%s]", s.clientIP)
 			return
 		case err := <-s.readErr:
-			log.Tracef("recv readErr in Run from [%s]. err=%v", s.clientIP, err)
 			s.lastErr = err
 			return
 		case op := <-s.readOp:
@@ -133,7 +131,6 @@ func (s *Server) read() {
 	for {
 		_, data, err := s.conn.ReadMessage()
 		if err != nil {
-			log.Tracef("recv readErr in read() from [%s]. err=%v", s.clientIP, err)
 			s.readErr <- err
 			return
 		}

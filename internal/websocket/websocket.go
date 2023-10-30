@@ -13,6 +13,8 @@ const (
 	wsPingWriteTimeout = 5 * time.Second
 	wsPongTimeout      = 30 * time.Second
 	wsMessageSizeLimit = 10 * 1024 * 1024
+
+	wsWriteTimeout = 10 * time.Second
 )
 
 var (
