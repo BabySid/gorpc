@@ -49,10 +49,12 @@ func NewServer(option api.ServerOption) *Server {
 func (s *Server) setUpBuiltInService() {
 	s.httpServer.POST(api.BuiltInPathJsonRPC, s.processJsonRpc)
 	s.httpServer.GET(api.BuiltInPathJsonWS, s.processJsonRpcByWS)
-	s.httpServer.GET(api.BuiltInPathMetrics, g.WrapH(promhttp.Handler()))
 
-	appName := filepath.Base(os.Args[0])
-	indexHtml := fmt.Sprintf(`
+	if s.opt.EnableInnerService {
+		s.httpServer.GET(api.BuiltInPathMetrics, g.WrapH(promhttp.Handler()))
+
+		appName := filepath.Base(os.Args[0])
+		indexHtml := fmt.Sprintf(`
 <h2>WelCome to %s</h2>
 <table border="1">
   <tr>
@@ -67,11 +69,12 @@ func (s *Server) setUpBuiltInService() {
 </table>
 `, appName, api.BuiltInPathDIR, appName, api.BuiltInPathMetrics, appName)
 
-	s.httpServer.GET("/", func(ctx *g.Context) {
-		ctx.Header("Content-Type", "text/html; charset=utf-8")
+		s.httpServer.GET("/", func(ctx *g.Context) {
+			ctx.Header("Content-Type", "text/html; charset=utf-8")
 
-		ctx.String(http.StatusOK, indexHtml)
-	})
+			ctx.String(http.StatusOK, indexHtml)
+		})
+	}
 }
 
 func (s *Server) RegisterJsonRPC(name string, receiver interface{}) error {

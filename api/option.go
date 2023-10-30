@@ -19,6 +19,8 @@ type ServerOption struct {
 	Codec codec.CodecType
 
 	BeforeRun func() error
+
+	EnableInnerService bool
 }
 
 const (
