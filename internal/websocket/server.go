@@ -26,6 +26,7 @@ type Server struct {
 	lastErr   error
 	notifyErr chan error
 
+	wMux      sync.Mutex
 	rpcServer *jsonrpc.Server
 
 	ctx *gin.Context
@@ -66,6 +67,9 @@ func NewServer(rpc *jsonrpc.Server, ctx *gin.Context) (*Server, error) {
 }
 
 func (s *Server) WriteJson(v interface{}) error {
+	s.wMux.Lock()
+	defer s.wMux.Unlock()
+
 	_ = s.conn.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 	err := s.conn.WriteJSON(v)
 	if err == nil {
