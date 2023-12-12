@@ -99,6 +99,7 @@ func (s *Server) pingLoop() {
 	for {
 		select {
 		case <-s.closeCh:
+			log.Tracef("recv closeCh in pingLoop from [%s]", s.clientIP)
 			return
 		case <-s.pingReset:
 			if !timer.Stop() {
@@ -123,6 +124,7 @@ func (s *Server) Run() {
 			log.Tracef("recv closeCh in Run from [%s]", s.clientIP)
 			return
 		case err := <-s.readErr:
+			log.Tracef("recv readErr(%s) in Run from [%s]", err, s.clientIP)
 			s.lastErr = err
 			return
 		case op := <-s.readOp:
@@ -135,6 +137,7 @@ func (s *Server) read() {
 	for {
 		_, data, err := s.conn.ReadMessage()
 		if err != nil {
+			log.Tracef("recv err(%s) in read from [%s]", err, s.clientIP)
 			s.readErr <- err
 			return
 		}
