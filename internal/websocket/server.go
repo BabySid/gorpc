@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/BabySid/gorpc/api"
-	"github.com/BabySid/gorpc/internal/ctx"
 	"github.com/BabySid/gorpc/internal/jsonrpc"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -15,6 +14,8 @@ import (
 )
 
 type Server struct {
+	opt api.ServerOption
+
 	conn *ws.Conn
 
 	wg        sync.WaitGroup
@@ -34,7 +35,7 @@ type Server struct {
 	clientIP string
 }
 
-func NewServer(rpc *jsonrpc.Server, ctx *gin.Context) (*Server, error) {
+func NewServer(opt api.ServerOption, rpc *jsonrpc.Server, ctx *gin.Context) (*Server, error) {
 	log.Infof("create websocket server: clientIP[%s]", ctx.ClientIP())
 	s := Server{}
 
@@ -43,6 +44,7 @@ func NewServer(rpc *jsonrpc.Server, ctx *gin.Context) (*Server, error) {
 		return nil, err
 	}
 
+	s.opt = opt
 	s.conn = conn
 	s.readErr = make(chan error)
 	s.readOp = make(chan []byte)
@@ -146,7 +148,7 @@ func (s *Server) read() {
 }
 
 func (s *Server) handle(data []byte) error {
-	context := ctx.NewAPIContext("jsonRpc2", uuid.New().String(), len(data), s.ctx)
+	context := newWSContext("jsonRpc2", uuid.New().String(), len(data), s)
 	defer func() {
 		context.EndRequest(api.Success)
 	}()

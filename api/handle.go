@@ -1,7 +1,7 @@
 package api
 
-// RpcHandle is a raw interface for creating api based http
-type RpcHandle func(ctx Context, params interface{}) *JsonRpcResponse
+// RawHandle is a raw interface for creating api based http
+type RawHandle func(ctx RawContext, body []byte)
 
 type Notifier interface {
 	Notify(sub *SubscriptionNotice) error

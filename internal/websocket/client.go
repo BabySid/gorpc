@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc/api"
@@ -29,6 +30,10 @@ type Client struct {
 
 	respWait sync.Map
 }
+
+var (
+	invalidMessage = errors.New("invalid messages")
+)
 
 func (c *Client) Close() error {
 	c.close <- struct{}{}
@@ -179,6 +184,7 @@ func (c *Client) read() {
 			default:
 				gobase.AssertHere()
 			}
+
 			if err != nil {
 				c.errChan <- err
 				return
@@ -222,6 +228,7 @@ func (c *Client) handleJsonRpcMessage(msg *jsonrpc.Message) error {
 		if ok {
 			ctx.(*rpcCallContext).resp <- msg
 		}
+		return nil
 	} else if msg.IsNotification() {
 		var subResult api.SubscriptionResult
 		err := json.Unmarshal(msg.Params, &subResult)
@@ -235,9 +242,10 @@ func (c *Client) handleJsonRpcMessage(msg *jsonrpc.Message) error {
 			return err
 		}
 		c.msgChan.Send(reflect.ValueOf(val.Elem().Interface()))
+		return nil
 	}
 
-	return nil
+	return invalidMessage
 }
 
 type rpcCallContext struct {

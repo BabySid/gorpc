@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc"
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/codec"
+	"time"
 )
 
 func main() {
@@ -23,9 +25,23 @@ func testClient() {
 		RevChan:       recv,
 	})
 
+	defer c.Close()
+
 	if err != nil {
 		panic(any(err))
 	}
+
+	go func() {
+		for {
+			select {
+			case err := <-c.ErrFromWS():
+				fmt.Println("err from ws: ", err)
+				return
+			case data := <-recv:
+				fmt.Println("rev from chan: ", data)
+			}
+		}
+	}()
 
 	var param Params
 	param.A = 100
@@ -33,32 +49,25 @@ func testClient() {
 
 	var res Result
 	err = c.CallJsonRpc(&res, "rpc.Add", param)
-	fmt.Println("Call rpc.Add return", res, err)
+	fmt.Println(gobase.FormatDateTime(), " Call rpc.Add return", res, err)
 
-	var res2 Result2
-	err = c.CallJsonRpc(&res2, "rpc.Add2", param)
-	fmt.Println("Call rpc.Add2 return", res2, err.Error())
-	apiErr, ok := api.FromError(err)
-	fmt.Println(apiErr, ok)
-
-	var res3 Result
-	res3 = -1
-	err = c.CallJsonRpc(&res3, "rpc.Add3", nil)
-	fmt.Println("Call rpc.Add3 return", res3, err)
-
+	//var res2 Result2
+	//err = c.CallJsonRpc(&res2, "rpc.Add2", param)
+	//fmt.Println("Call rpc.Add2 return", res2, err.Error())
+	//apiErr, ok := api.FromError(err)
+	//fmt.Println(apiErr, ok)
+	//
+	//var res3 Result
+	//res3 = -1
+	//err = c.CallJsonRpc(&res3, "rpc.Add3", nil)
+	//fmt.Println("Call rpc.Add3 return", res3, err)
+	//
 	var res4 string
 	err = c.CallJsonRpc(&res4, "rpc.Sub", nil)
-	fmt.Println("Call rpc.Sub return", res4, err)
+	fmt.Println(gobase.FormatDateTime(), " Call rpc.Sub return", res4, err)
 
-	for {
-		select {
-		case err := <-c.ErrFromWS():
-			fmt.Println("err from ws: ", err)
-			return
-		case data := <-recv:
-			fmt.Println("rev from chan: ", data)
-		}
-	}
+	time.Sleep(10 * time.Second)
+
 }
 
 type Params struct {

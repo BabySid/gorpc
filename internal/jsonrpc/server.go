@@ -205,7 +205,7 @@ func (server *Server) processRequest(ctx api.Context, req *Message) *api.JsonRpc
 	if rpcErr != nil {
 		return api.NewErrorJsonRpcResponseWithError(req.ID, rpcErr)
 	}
-	ctx.Log("processRequest method[%s] id[%v]", req.Method, req.ID)
+	ctx.Log("processRequest method[%s] id[%v]", req.Method, string(req.ID))
 
 	dot := strings.Index(req.Method, ".")
 	if dot < 0 {

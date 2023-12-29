@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc/api"
-	"github.com/BabySid/gorpc/internal/ctx"
 	"github.com/BabySid/gorpc/internal/gin"
 	"github.com/BabySid/gorpc/internal/jsonrpc"
 	"github.com/BabySid/gorpc/internal/websocket"
-	"github.com/BabySid/gorpc/util"
 	g "github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -27,19 +25,13 @@ type Server struct {
 	httpServer *gin.Server
 
 	rpcServer *jsonrpc.Server
-
-	// handles
-	getHandles  map[string]api.RpcHandle
-	postHandles map[string]api.RpcHandle
 }
 
 func NewServer(option api.ServerOption) *Server {
 	s := &Server{
-		opt:         option,
-		httpServer:  gin.NewServer(),
-		rpcServer:   jsonrpc.NewServer(jsonrpc.Option{CodeType: option.Codec}),
-		getHandles:  make(map[string]api.RpcHandle),
-		postHandles: make(map[string]api.RpcHandle),
+		opt:        option,
+		httpServer: gin.NewServer(),
+		rpcServer:  jsonrpc.NewServer(jsonrpc.Option{CodeType: option.Codec}),
 	}
 
 	s.setUpBuiltInService()
@@ -81,17 +73,15 @@ func (s *Server) RegisterJsonRPC(name string, receiver interface{}) error {
 	return s.rpcServer.RegisterName(name, receiver)
 }
 
-func (s *Server) RegisterPath(httpMethod string, path string, handle api.RpcHandle) error {
+func (s *Server) RegisterPath(httpMethod string, path string, handle api.RawHandle) error {
 	if err := s.checkPath(path); err != nil {
 		return err
 	}
 	switch httpMethod {
 	case http.MethodGet:
-		s.httpServer.GET(path, s.processGetRequest)
-		s.getHandles[path] = handle
+		s.httpServer.GET(path, getHandleWrapper(handle))
 	case http.MethodPost:
-		s.httpServer.POST(path, s.processPostRequest)
-		s.postHandles[path] = handle
+		s.httpServer.POST(path, postHandleWrapper(handle))
 	default:
 		gobase.AssertHere()
 	}
@@ -137,72 +127,8 @@ func (s *Server) Run(ln net.Listener) error {
 	return s.httpServer.RunListener(ln)
 }
 
-func (s *Server) processGetRequest(c *g.Context) {
-	path := c.Request.URL.Path
-
-	id := uuid.New().String()
-	if v, ok := c.GetQuery("id"); ok {
-		id = v
-	}
-	handle, ok := s.getHandles[path]
-	if !ok {
-		resp := api.NewErrorJsonRpcResponse(id, api.MethodNotFound, api.SysCodeMap[api.MethodNotFound], path)
-		c.JSON(http.StatusOK, resp)
-		return
-	}
-
-	code := api.Success
-	ctx := ctx.NewAPIContext(path, id, 0, c)
-	defer func() {
-		ctx.EndRequest(code)
-	}()
-
-	resp := handle(ctx, nil)
-	if resp.Error != nil {
-		code = resp.Error.Code
-	}
-	c.JSON(http.StatusOK, resp)
-}
-
-func (s *Server) processPostRequest(c *g.Context) {
-	body, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		resp := api.NewErrorJsonRpcResponse(nil, api.InternalError, api.SysCodeMap[api.InternalError], err.Error())
-		c.JSON(http.StatusOK, resp)
-		return
-	}
-
-	var req api.JsonRpcRequest
-	err = util.DecodeJson(body, &req)
-	if err != nil {
-		resp := api.NewErrorJsonRpcResponse(nil, api.ParseError, api.SysCodeMap[api.ParseError], err.Error())
-		c.JSON(http.StatusOK, resp)
-		return
-	}
-
-	path := c.Request.URL.Path
-	handle, ok := s.postHandles[path]
-	if !ok {
-		resp := api.NewErrorJsonRpcResponse(req.Id, api.MethodNotFound, api.SysCodeMap[api.MethodNotFound], path)
-		c.JSON(http.StatusOK, resp)
-		return
-	}
-
-	code := api.Success
-	ctx := ctx.NewAPIContext(path, req.Id, len(body), c)
-	defer func() {
-		ctx.EndRequest(code)
-	}()
-
-	resp := handle(ctx, req.Params)
-	if resp.Error != nil {
-		code = resp.Error.Code
-	}
-	c.JSON(http.StatusOK, resp)
-}
-
 func (s *Server) processJsonRpcByWS(c *g.Context) {
-	srv, err := websocket.NewServer(s.rpcServer, c)
+	srv, err := websocket.NewServer(s.opt, s.rpcServer, c)
 	if err != nil {
 		c.String(http.StatusBadRequest, "websocket.NewServer: %s", err)
 		return
@@ -219,7 +145,7 @@ func (s *Server) processJsonRpc(c *g.Context) {
 		return
 	}
 
-	ctx := ctx.NewAPIContext("jsonRpc2", uuid.New().String(), len(body), c)
+	ctx := newHttpContext("jsonRpc2", uuid.New().String(), len(body), c)
 	defer func() {
 		ctx.EndRequest(api.Success)
 	}()

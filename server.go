@@ -44,7 +44,7 @@ func (s *Server) RegisterJsonRPC(name string, receiver interface{}) error {
 	return s.hSvr.RegisterJsonRPC(name, receiver)
 }
 
-func (s *Server) RegisterPath(httpMethod string, path string, handle api.RpcHandle) error {
+func (s *Server) RegisterPath(httpMethod string, path string, handle api.RawHandle) error {
 	return s.hSvr.RegisterPath(httpMethod, path, handle)
 }
 

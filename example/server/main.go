@@ -22,8 +22,8 @@ func main() {
 	})
 
 	t := &srv{}
-	s.RegisterPath(http.MethodGet, "/v1/get", t.getHandle)
-	s.RegisterPath(http.MethodPost, "/v1/post", t.postHandle)
+	s.RegisterPath(http.MethodGet, "/v1/get/:uid", t.getHandle)
+	//s.RegisterPath(http.MethodPost, "/v1/post", t.postHandle)
 	s.RegisterJsonRPC("rpc", &rpcServer{})
 
 	err := s.Run()
@@ -32,8 +32,11 @@ func main() {
 
 type srv struct{}
 
-func (s *srv) getHandle(ctx api.Context, httpBody interface{}) *api.JsonRpcResponse {
-	return api.NewSuccessJsonRpcResponse(ctx.ID(), "hello world")
+func (s *srv) getHandle(ctx api.RawContext, httpBody []byte) {
+	uid := ctx.Param("uid")
+	name := ctx.Query("name")
+	ctx.Log("got uid = %s name = %s", uid, name)
+	_ = ctx.WriteData(200, "text/plain; charset=utf-8", []byte("ok"))
 }
 
 func (s *srv) postHandle(ctx api.Context, httpBody interface{}) *api.JsonRpcResponse {
@@ -41,7 +44,7 @@ func (s *srv) postHandle(ctx api.Context, httpBody interface{}) *api.JsonRpcResp
 		ctx.Log("httpBody %v", httpBody)
 	}
 
-	return api.NewSuccessJsonRpcResponse(ctx.ID(), map[string]interface{}{
+	return api.NewSuccessJsonRpcResponse(ctx.CtxID(), map[string]interface{}{
 		"hello": httpBody,
 	})
 }
@@ -73,7 +76,7 @@ func (i *rpcServer) Add3(ctx api.Context, params interface{}) (*Result, *api.Jso
 func (i *rpcServer) Add(ctx api.Context, params *Params) (*Result, *api.JsonRpcError) {
 	a := params.A + params.B
 	result := interface{}(a).(Result)
-	ctx.Log("Add %v", result)
+	//ctx.Log("Add %v err=%v", result, err)
 	return &result, nil
 }
 
@@ -120,5 +123,6 @@ func (i *rpcServer) Sub(ctx api.Context, params *Params) (*SubResult, *api.JsonR
 
 	var rs SubResult
 	rs = "0x5e7c550061dad01c4f59eab18b2e055"
+
 	return &rs, nil
 }
