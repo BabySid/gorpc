@@ -30,20 +30,19 @@ type Server struct {
 	wMux      sync.Mutex
 	rpcServer *jsonrpc.Server
 
-	ctx *gin.Context
+	ctx      *gin.Context
+	notifier *notifier
 
 	clientIP string
 }
 
 func NewServer(opt api.ServerOption, rpc *jsonrpc.Server, ctx *gin.Context) (*Server, error) {
-	log.Infof("create websocket server: clientIP[%s]", ctx.ClientIP())
-	s := Server{}
-
 	conn, err := upGrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
 		return nil, err
 	}
 
+	s := Server{}
 	s.opt = opt
 	s.conn = conn
 	s.readErr = make(chan error)
@@ -60,8 +59,14 @@ func NewServer(opt api.ServerOption, rpc *jsonrpc.Server, ctx *gin.Context) (*Se
 	s.rpcServer = rpc
 
 	s.ctx = ctx
+	s.notifier = &notifier{
+		s:  &s,
+		id: uuid.New().String(),
+	}
 
 	s.clientIP = ctx.ClientIP()
+
+	log.Infof("create websocket server: clientIP[%s]", ctx.ClientIP())
 
 	s.wg.Add(1)
 	go s.pingLoop()
@@ -153,7 +158,7 @@ func (s *Server) handle(data []byte) error {
 		context.EndRequest(api.Success)
 	}()
 
-	context.WithValue(api.NotifierKey, &notifier{s: s})
+	context.WithValue(api.NotifierKey, s.notifier)
 
 	resp := s.rpcServer.Call(context, data)
 	return s.WriteJson(resp)

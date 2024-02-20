@@ -5,6 +5,7 @@ type RawHandle func(ctx RawContext, body []byte)
 
 type Notifier interface {
 	Notify(sub *SubscriptionNotice) error
+	ID() string
 	Err() chan error
 }
 
