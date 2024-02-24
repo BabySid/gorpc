@@ -1,14 +1,24 @@
 package api
 
-// RawHandle is a raw interface for creating api based http
-type RawHandle func(ctx RawContext, body []byte)
+// RawHttpHandle is a raw interface for creating api based http
+type RawHttpHandle func(RawContext, []byte)
 
-type Notifier interface {
+// RawWsHandle is a raw interface for creating api based ws
+type RawWsHandle func(Context, WSMessage) error
+
+type JsonRpcNotifier interface {
 	Notify(sub *SubscriptionNotice) error
 	ID() string
 	Err() chan error
 }
 
 const (
-	NotifierKey = "_notifierKey_"
+	JsonRpcNotifierKey = "_JsonRpcNotifierKey_"
+	RawWSNotifierKey   = "_RawWSNotifierKey_"
 )
+
+type RawWSNotifier interface {
+	Write(WSMessage) error
+	ID() string
+	Err() chan error
+}

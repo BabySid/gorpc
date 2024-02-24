@@ -14,23 +14,45 @@ import (
 
 func main() {
 	s := gorpc.NewServer(api.ServerOption{
-		Addr:        ":8888",
-		ClusterName: "test",
-		Rotator:     nil,
-		LogLevel:    "info",
-		Codec:       codec.JsonCodec,
+		Addr:               ":8888",
+		ClusterName:        "test",
+		Rotator:            nil,
+		LogLevel:           "trace",
+		JsonRpcOpt:         &api.JsonRpcOption{Codec: codec.JsonCodec},
+		EnableInnerService: true,
 	})
 
 	t := &srv{}
 	s.RegisterPath(http.MethodGet, "/v1/get/:uid", t.getHandle)
 	//s.RegisterPath(http.MethodPost, "/v1/post", t.postHandle)
 	s.RegisterJsonRPC("rpc", &rpcServer{})
+	s.RegisterRawWs(t.rawWsHandle)
 
 	err := s.Run()
 	fmt.Println(err)
 }
 
 type srv struct{}
+
+func (s *srv) rawWsHandle(ctx api.Context, msg api.WSMessage) error {
+	value, ok := ctx.Value(api.RawWSNotifierKey)
+	if !ok {
+		panic(false)
+	}
+	notifier, ok := value.(api.RawWSNotifier)
+	if !ok {
+		panic("panic if !ok")
+	}
+
+	tmp := string(msg.Data) + gobase.FormatDateTime()
+	err := notifier.Write(api.WSMessage{
+		Type: api.WSTextMessage,
+		Data: []byte(tmp),
+	})
+
+	ctx.Log("%s => %d %s %v", notifier.ID(), msg.Type, string(msg.Data), err)
+	return nil
+}
 
 func (s *srv) getHandle(ctx api.RawContext, httpBody []byte) {
 	uid := ctx.Param("uid")
@@ -63,7 +85,7 @@ type Result2 struct {
 }
 
 func (i *rpcServer) Add3(ctx api.Context, params interface{}) (*Result, *api.JsonRpcError) {
-	_, ok := ctx.Value(api.NotifierKey)
+	_, ok := ctx.Value(api.JsonRpcNotifierKey)
 	if ok {
 		return nil, api.NewJsonRpcError(-32000, "not supported", errors.New("not supported"))
 	}
@@ -97,11 +119,11 @@ type SubData struct {
 }
 
 func (i *rpcServer) Sub(ctx api.Context, params *Params) (*SubResult, *api.JsonRpcError) {
-	value, ok := ctx.Value(api.NotifierKey)
+	value, ok := ctx.Value(api.JsonRpcNotifierKey)
 	if !ok {
 		return nil, api.NewJsonRpcError(-32000, "not supported", errors.New("not supported"))
 	}
-	notifier, ok := value.(api.Notifier)
+	notifier, ok := value.(api.JsonRpcNotifier)
 	if !ok {
 		panic("panic if !ok")
 	}

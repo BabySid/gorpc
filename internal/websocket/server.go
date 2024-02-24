@@ -3,6 +3,7 @@ package websocket
 import (
 	"errors"
 	"fmt"
+	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/internal/jsonrpc"
 	"github.com/gin-gonic/gin"
@@ -14,54 +15,86 @@ import (
 )
 
 type Server struct {
-	opt api.ServerOption
-
 	conn *ws.Conn
 
 	wg        sync.WaitGroup
 	readErr   chan error
-	readOp    chan []byte
+	readOp    chan api.WSMessage
 	closeCh   chan struct{}
 	pingReset chan struct{}
 
 	lastErr   error
-	notifyErr chan error
+	serverErr chan error
 
-	wMux      sync.Mutex
-	rpcServer *jsonrpc.Server
+	wMux sync.Mutex
 
-	ctx      *gin.Context
-	notifier *notifier
+	ctx *gin.Context
 
 	clientIP string
+	option   wsOption
 }
 
-func NewServer(opt api.ServerOption, rpc *jsonrpc.Server, ctx *gin.Context) (*Server, error) {
+type wsOption struct {
+	rpcServer   *jsonrpc.Server
+	rpcNotifier *rpcNotifier
+
+	rawHandle   api.RawWsHandle
+	rawNotifier *rawNotifier
+}
+
+type WsOption func(opt *wsOption)
+
+func WithRpcServer(s *jsonrpc.Server) WsOption {
+	return func(opt *wsOption) {
+		gobase.True(opt.rawHandle == nil)
+		opt.rpcServer = s
+	}
+}
+
+func WithRawHandle(handle api.RawWsHandle) WsOption {
+	return func(opt *wsOption) {
+		gobase.True(opt.rpcServer == nil)
+		opt.rawHandle = handle
+	}
+}
+
+func NewServer(ctx *gin.Context, opts ...WsOption) (*Server, error) {
+	gobase.True(len(opts) > 0)
+
 	conn, err := upGrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	s := Server{}
-	s.opt = opt
+	for _, opt := range opts {
+		opt(&s.option)
+	}
+
 	s.conn = conn
 	s.readErr = make(chan error)
-	s.readOp = make(chan []byte)
+	s.readOp = make(chan api.WSMessage)
 	s.closeCh = make(chan struct{})
 	s.pingReset = make(chan struct{})
-	s.notifyErr = make(chan error)
+	s.serverErr = make(chan error, 1)
 	s.conn.SetReadLimit(wsMessageSizeLimit)
 	s.conn.SetPongHandler(func(v string) error {
 		_ = s.conn.SetReadDeadline(time.Time{})
 		return nil
 	})
 
-	s.rpcServer = rpc
-
 	s.ctx = ctx
-	s.notifier = &notifier{
-		s:  &s,
-		id: uuid.New().String(),
+	if s.option.rpcServer != nil {
+		s.option.rpcNotifier = &rpcNotifier{
+			s:  &s,
+			id: uuid.New().String(),
+		}
+	}
+	if s.option.rawHandle != nil {
+		s.option.rawNotifier = &rawNotifier{
+			s:  &s,
+			id: uuid.New().String(),
+		}
 	}
 
 	s.clientIP = ctx.ClientIP()
@@ -73,7 +106,7 @@ func NewServer(opt api.ServerOption, rpc *jsonrpc.Server, ctx *gin.Context) (*Se
 	return &s, nil
 }
 
-func (s *Server) WriteJson(v interface{}) error {
+func (s *Server) writeJson(v interface{}) error {
 	s.wMux.Lock()
 	defer s.wMux.Unlock()
 
@@ -86,15 +119,27 @@ func (s *Server) WriteJson(v interface{}) error {
 	return err
 }
 
+func (s *Server) writeRaw(typ int, data []byte) error {
+	s.wMux.Lock()
+	defer s.wMux.Unlock()
+
+	_ = s.conn.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
+	err := s.conn.WriteMessage(typ, data)
+	if err == nil {
+		s.pingReset <- struct{}{}
+	}
+
+	return err
+}
+
 func (s *Server) Close() {
 	close(s.closeCh)
 	_ = s.conn.Close()
 	s.wg.Wait()
-
 	if s.lastErr == nil {
 		s.lastErr = errors.New(fmt.Sprintf("server close from [%s]", s.clientIP))
 	}
-	s.notifyErr <- s.lastErr
+	s.serverErr <- s.lastErr
 	log.Infof("close websocket server: clientIP[%s]", s.ctx.ClientIP())
 }
 
@@ -134,32 +179,47 @@ func (s *Server) Run() {
 			log.Tracef("recv readErr(%s) in Run from [%s]", err, s.clientIP)
 			s.lastErr = err
 			return
-		case op := <-s.readOp:
-			_ = s.handle(op)
+		case msg := <-s.readOp:
+			if s.option.rawHandle != nil {
+				_ = s.handleRaw(msg)
+			} else {
+				_ = s.handleJsonRpc(msg)
+			}
+
 		}
 	}
 }
 
 func (s *Server) read() {
 	for {
-		_, data, err := s.conn.ReadMessage()
+		typ, data, err := s.conn.ReadMessage()
 		if err != nil {
 			log.Tracef("recv err(%s) in read from [%s]", err, s.clientIP)
 			s.readErr <- err
 			return
 		}
-		s.readOp <- data
+		s.readOp <- api.WSMessage{Type: api.WSMessageType(typ), Data: data}
 	}
 }
 
-func (s *Server) handle(data []byte) error {
-	context := newWSContext("jsonRpc2", uuid.New().String(), len(data), s)
+func (s *Server) handleRaw(msg api.WSMessage) error {
+	context := newWSContext("Raw", uuid.New().String(), len(msg.Data), s)
 	defer func() {
 		context.EndRequest(api.Success)
 	}()
 
-	context.WithValue(api.NotifierKey, s.notifier)
+	context.WithValue(api.RawWSNotifierKey, s.option.rawNotifier)
+	return s.option.rawHandle(context, msg)
+}
 
-	resp := s.rpcServer.Call(context, data)
-	return s.WriteJson(resp)
+func (s *Server) handleJsonRpc(msg api.WSMessage) error {
+	context := newWSContext("jsonRpc2", uuid.New().String(), len(msg.Data), s)
+	defer func() {
+		context.EndRequest(api.Success)
+	}()
+
+	context.WithValue(api.JsonRpcNotifierKey, s.option.rpcNotifier)
+
+	resp := s.option.rpcServer.Call(context, msg.Data)
+	return s.writeJson(resp)
 }

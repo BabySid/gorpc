@@ -33,7 +33,7 @@ type Client interface {
 	Close() error
 
 	// The WriteByWs ending with "WS" are only intended for WebSocket clients
-	WriteByWs(req interface{}) error
+	WriteByWs(WSMessage) error
 	ErrFromWS() chan error
 
 	// The UnderlyingHandle is only intended for grpc clients now
@@ -49,7 +49,7 @@ func (c ClientAdapter) ErrFromWS() chan error {
 	panic("implement me")
 }
 
-func (c ClientAdapter) WriteByWs(req interface{}) error {
+func (c ClientAdapter) WriteByWs(WSMessage) error {
 	//TODO implement me
 	panic("implement me")
 }

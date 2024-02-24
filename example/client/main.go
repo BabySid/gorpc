@@ -2,10 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc"
 	"github.com/BabySid/gorpc/api"
-	"github.com/BabySid/gorpc/codec"
 	"time"
 )
 
@@ -18,11 +16,9 @@ type SubData struct {
 }
 
 func testClient() {
-	recv := make(chan SubData)
-	c, err := gorpc.Dial("ws://localhost:8888/_ws_", api.ClientOption{
-		Codec:         codec.JsonCodec,
-		WebSocketMode: api.WSM_JsonRpc,
-		RevChan:       recv,
+	recv := make(chan api.WSMessage)
+	c, err := gorpc.Dial("ws://localhost:8888/_raw_ws_", api.ClientOption{
+		RevChan: recv,
 	})
 
 	defer c.Close()
@@ -38,18 +34,31 @@ func testClient() {
 				fmt.Println("err from ws: ", err)
 				return
 			case data := <-recv:
-				fmt.Println("rev from chan: ", data)
+				fmt.Printf("rev from chan: %d %s\n", data.Type, string(data.Data))
 			}
 		}
 	}()
 
-	var param Params
-	param.A = 100
-	param.B = 200
-
-	var res Result
-	err = c.CallJsonRpc(&res, "rpc.Add", param)
-	fmt.Println(gobase.FormatDateTime(), " Call rpc.Add return", res, err)
+	inputs := []string{
+		"this is first",
+		"this is 2",
+		"3?",
+	}
+	for _, item := range inputs {
+		err := c.WriteByWs(api.WSMessage{
+			Type: api.WSTextMessage,
+			Data: []byte(item),
+		})
+		fmt.Printf("send to server: %s %v\n", item, err)
+		time.Sleep(time.Second * 3)
+	}
+	//var param Params
+	//param.A = 100
+	//param.B = 200
+	//
+	//var res Result
+	//err = c.CallJsonRpc(&res, "rpc.Add", param)
+	//fmt.Println(gobase.FormatDateTime(), " Call rpc.Add return", res, err)
 
 	//var res2 Result2
 	//err = c.CallJsonRpc(&res2, "rpc.Add2", param)
@@ -62,11 +71,11 @@ func testClient() {
 	//err = c.CallJsonRpc(&res3, "rpc.Add3", nil)
 	//fmt.Println("Call rpc.Add3 return", res3, err)
 	//
-	var res4 string
-	err = c.CallJsonRpc(&res4, "rpc.Sub", nil)
-	fmt.Println(gobase.FormatDateTime(), " Call rpc.Sub return", res4, err)
-
-	time.Sleep(10 * time.Second)
+	//var res4 string
+	//err = c.CallJsonRpc(&res4, "rpc.Sub", nil)
+	//fmt.Println(gobase.FormatDateTime(), " Call rpc.Sub return", res4, err)
+	//
+	time.Sleep(30 * time.Second)
 
 }
 

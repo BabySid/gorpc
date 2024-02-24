@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-func getHandleWrapper(handle api.RawHandle) func(ctx *gin.Context) {
+func getHandleWrapper(handle api.RawHttpHandle) func(ctx *gin.Context) {
 	return func(ctx *gin.Context) {
 		path := ctx.Request.URL.Path
 
@@ -25,7 +25,7 @@ func getHandleWrapper(handle api.RawHandle) func(ctx *gin.Context) {
 	}
 }
 
-func postHandleWrapper(handle api.RawHandle) func(ctx *gin.Context) {
+func postHandleWrapper(handle api.RawHttpHandle) func(ctx *gin.Context) {
 	return func(ctx *gin.Context) {
 		path := ctx.Request.URL.Path
 

@@ -25,13 +25,19 @@ type Server struct {
 	httpServer *gin.Server
 
 	rpcServer *jsonrpc.Server
+
+	rawWsHandle api.RawWsHandle
 }
 
 func NewServer(option api.ServerOption) *Server {
 	s := &Server{
 		opt:        option,
 		httpServer: gin.NewServer(),
-		rpcServer:  jsonrpc.NewServer(jsonrpc.Option{CodeType: option.Codec}),
+		rpcServer:  nil,
+	}
+
+	if s.opt.JsonRpcOpt != nil {
+		s.rpcServer = jsonrpc.NewServer(jsonrpc.Option{CodeType: s.opt.JsonRpcOpt.Codec})
 	}
 
 	s.setUpBuiltInService()
@@ -39,11 +45,18 @@ func NewServer(option api.ServerOption) *Server {
 }
 
 func (s *Server) setUpBuiltInService() {
-	s.httpServer.POST(api.BuiltInPathJsonRPC, s.processJsonRpc)
-	s.httpServer.GET(api.BuiltInPathJsonWS, s.processJsonRpcByWS)
+	s.httpServer.POST(api.BuiltInPathJsonRPC, s.processJsonRpcWithHttp)
+	s.httpServer.GET(api.BuiltInPathWsJsonRPC, s.processJsonRpcWithWS)
+	s.httpServer.GET(api.BuiltInPathRawWS, s.processRawWS)
 
 	if s.opt.EnableInnerService {
 		s.httpServer.GET(api.BuiltInPathMetrics, g.WrapH(promhttp.Handler()))
+
+		path, err := filepath.Abs(filepath.Dir(os.Args[0]))
+		gobase.True(err == nil)
+		dir := http.Dir(path + "/..")
+		log.Infof("set static fs to %s", dir)
+		s.httpServer.StaticFS(api.BuiltInPathDIR, dir)
 
 		appName := filepath.Base(os.Args[0])
 		indexHtml := fmt.Sprintf(`
@@ -73,7 +86,12 @@ func (s *Server) RegisterJsonRPC(name string, receiver interface{}) error {
 	return s.rpcServer.RegisterName(name, receiver)
 }
 
-func (s *Server) RegisterPath(httpMethod string, path string, handle api.RawHandle) error {
+func (s *Server) RegisterRawWs(handle api.RawWsHandle) error {
+	s.rawWsHandle = handle
+	return nil
+}
+
+func (s *Server) RegisterPath(httpMethod string, path string, handle api.RawHttpHandle) error {
 	if err := s.checkPath(path); err != nil {
 		return err
 	}
@@ -106,7 +124,8 @@ func (s *Server) checkPath(path string) error {
 
 	if rootPath == api.BuiltInPathMetrics ||
 		rootPath == api.BuiltInPathJsonRPC ||
-		rootPath == api.BuiltInPathJsonWS ||
+		rootPath == api.BuiltInPathWsJsonRPC ||
+		rootPath == api.BuiltInPathRawWS ||
 		rootPath == api.BuiltInPathDIR {
 		return invalidPath
 	}
@@ -115,20 +134,12 @@ func (s *Server) checkPath(path string) error {
 }
 
 func (s *Server) Run(ln net.Listener) error {
-	path, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		return err
-	}
-
-	dir := http.Dir(path + "/..")
-	log.Infof("set static fs to %s", dir)
-	s.httpServer.StaticFS(api.BuiltInPathDIR, dir)
-
 	return s.httpServer.RunListener(ln)
 }
 
-func (s *Server) processJsonRpcByWS(c *g.Context) {
-	srv, err := websocket.NewServer(s.opt, s.rpcServer, c)
+func (s *Server) processRawWS(c *g.Context) {
+	gobase.True(s.rawWsHandle != nil)
+	srv, err := websocket.NewServer(c, websocket.WithRawHandle(s.rawWsHandle))
 	if err != nil {
 		c.String(http.StatusBadRequest, "websocket.NewServer: %s", err)
 		return
@@ -137,7 +148,18 @@ func (s *Server) processJsonRpcByWS(c *g.Context) {
 	srv.Run()
 }
 
-func (s *Server) processJsonRpc(c *g.Context) {
+func (s *Server) processJsonRpcWithWS(c *g.Context) {
+	gobase.True(s.rpcServer != nil)
+	srv, err := websocket.NewServer(c, websocket.WithRpcServer(s.rpcServer))
+	if err != nil {
+		c.String(http.StatusBadRequest, "websocket.NewServer: %s", err)
+		return
+	}
+	defer srv.Close()
+	srv.Run()
+}
+
+func (s *Server) processJsonRpcWithHttp(c *g.Context) {
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		resp := api.NewErrorJsonRpcResponse(nil, api.InternalError, api.SysCodeMap[api.InternalError], err.Error())

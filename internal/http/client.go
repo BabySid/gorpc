@@ -34,6 +34,7 @@ func (c *Client) GetType() api.ClientType {
 }
 
 func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}) error {
+	gobase.True(c.jsonRpcCli != nil)
 	err := c.jsonRpcCli.Call(result, method, args, func(reqs ...*jsonrpc.Message) ([]*jsonrpc.Message, error) {
 		gobase.True(len(reqs) == 1)
 		code, body, err := c.doPostHttp(c.rawUrl, reqs[0])
@@ -61,6 +62,7 @@ func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}
 }
 
 func (c *Client) BatchCallJsonRpc(b []api.BatchElem) error {
+	gobase.True(c.jsonRpcCli != nil)
 	err := c.jsonRpcCli.BatchCall(b, func(reqs ...*jsonrpc.Message) ([]*jsonrpc.Message, error) {
 		gobase.True(len(reqs) > 0)
 		code, body, err := c.doPostHttp(c.rawUrl, reqs)
@@ -117,9 +119,13 @@ func Dial(rawUrl string, opt api.ClientOption) (*Client, error) {
 	c := &Client{
 		rawUrl:     rawUrl,
 		httpHandle: new(http.Client),
-		jsonRpcCli: jsonrpc.NewClient(opt.Codec),
+		jsonRpcCli: nil,
 		header:     headers,
 		opt:        opt,
+	}
+
+	if opt.JsonRpcOpt != nil {
+		c.jsonRpcCli = jsonrpc.NewClient(opt.JsonRpcOpt.Codec)
 	}
 
 	return c, nil

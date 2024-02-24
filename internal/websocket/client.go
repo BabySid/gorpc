@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"net/http"
 	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -33,6 +34,7 @@ type Client struct {
 
 var (
 	invalidMessage = errors.New("invalid messages")
+	typOfRawChan   = reflect.TypeOf(api.WSMessage{})
 )
 
 func (c *Client) Close() error {
@@ -47,6 +49,15 @@ func Dial(rawUrl string, opt api.ClientOption) (*Client, error) {
 	}
 	if chanVal.IsNil() {
 		panic("channel given to Subscribe must not be nil")
+	}
+
+	var rpcCli *jsonrpc.Client
+	if opt.JsonRpcOpt != nil {
+		rpcCli = jsonrpc.NewClient(opt.JsonRpcOpt.Codec)
+	}
+	if strings.HasSuffix(rawUrl, api.BuiltInPathRawWS) {
+		gobase.TrueF(rpcCli == nil, "conflict with jsonrpc")
+		gobase.True(chanVal.Type().Elem() == typOfRawChan)
 	}
 
 	dialer := websocket.Dialer{
@@ -67,7 +78,7 @@ func Dial(rawUrl string, opt api.ClientOption) (*Client, error) {
 		rawUrl:     rawUrl,
 		opt:        opt,
 		conn:       conn,
-		jsonRpcCli: jsonrpc.NewClient(opt.Codec),
+		jsonRpcCli: rpcCli,
 		msgType:    chanVal.Type().Elem(),
 		msgChan:    chanVal,
 		errChan:    make(chan error, 1),
@@ -102,6 +113,7 @@ func (c *Client) ErrFromWS() chan error {
 }
 
 func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}) error {
+	gobase.True(c.jsonRpcCli != nil)
 	err := c.jsonRpcCli.Call(result, method, args, func(reqs ...*jsonrpc.Message) ([]*jsonrpc.Message, error) {
 		gobase.True(len(reqs) == 1)
 		ctx := rpcCallContext{
@@ -109,7 +121,14 @@ func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}
 			resp: make(chan *jsonrpc.Message),
 		}
 		c.respWait.Store(ctx.id, &ctx)
-		err := c.WriteByWs(reqs[0])
+		bs, err := json.Marshal(reqs[0])
+		if err != nil {
+			return nil, err
+		}
+		err = c.WriteByWs(api.WSMessage{
+			Type: api.WSTextMessage,
+			Data: bs,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -123,6 +142,7 @@ func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}
 }
 
 func (c *Client) BatchCallJsonRpc(b []api.BatchElem) error {
+	gobase.True(c.jsonRpcCli != nil)
 	err := c.jsonRpcCli.BatchCall(b, func(reqs ...*jsonrpc.Message) ([]*jsonrpc.Message, error) {
 		gobase.True(len(reqs) > 0)
 
@@ -136,7 +156,14 @@ func (c *Client) BatchCallJsonRpc(b []api.BatchElem) error {
 			c.respWait.Store(ctx.id, &ctx)
 		}
 
-		err := c.WriteByWs(reqs)
+		bs, err := json.Marshal(reqs)
+		if err != nil {
+			return nil, err
+		}
+		err = c.WriteByWs(api.WSMessage{
+			Type: api.WSTextMessage,
+			Data: bs,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -152,12 +179,8 @@ func (c *Client) BatchCallJsonRpc(b []api.BatchElem) error {
 	return err
 }
 
-func (c *Client) WriteByWs(req interface{}) error {
-	bs, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
-	return c.conn.WriteMessage(websocket.TextMessage, bs)
+func (c *Client) WriteByWs(msg api.WSMessage) error {
+	return c.conn.WriteMessage(int(msg.Type), msg.Data)
 }
 
 func (c *Client) read() {
@@ -170,19 +193,16 @@ func (c *Client) read() {
 		case <-c.close:
 			return
 		default:
-			_, msg, err := c.conn.ReadMessage()
+			typ, msg, err := c.conn.ReadMessage()
 			if err != nil {
 				c.errChan <- err
 				return
 			}
 			// response of call? or subscription
-			switch c.opt.WebSocketMode {
-			case api.WSM_RawJson:
-				err = c.handleRaw(msg)
-			case api.WSM_JsonRpc:
-				err = c.handleJsonRpc(msg)
-			default:
-				gobase.AssertHere()
+			if c.jsonRpcCli != nil {
+				err = c.handleJsonRpc(typ, msg)
+			} else {
+				err = c.handleRaw(typ, msg)
 			}
 
 			if err != nil {
@@ -193,17 +213,21 @@ func (c *Client) read() {
 	}
 }
 
-func (c *Client) handleRaw(msg []byte) error {
-	val := reflect.New(c.msgType)
-	err := json.Unmarshal(msg, val.Interface())
-	if err != nil {
-		return err
-	}
-	c.msgChan.Send(reflect.ValueOf(val.Elem().Interface()))
+func (c *Client) handleRaw(typ int, msg []byte) error {
+	c.msgChan.Send(reflect.ValueOf(api.WSMessage{
+		Type: api.WSMessageType(typ),
+		Data: msg,
+	}))
+	//val := reflect.New(c.msgType)
+	//err := json.Unmarshal(msg, val.Interface())
+	//if err != nil {
+	//	return err
+	//}
+	//c.msgChan.Send(reflect.ValueOf(val.Elem().Interface()))
 	return nil
 }
 
-func (c *Client) handleJsonRpc(msg []byte) error {
+func (c *Client) handleJsonRpc(_ int, msg []byte) error {
 	msgs, batch, err := jsonrpc.ParseBatchMessage(msg)
 	if err != nil {
 		return err

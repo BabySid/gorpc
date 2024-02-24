@@ -9,6 +9,9 @@ type Rotator struct {
 	LogPath   string
 }
 
+type JsonRpcOption struct {
+	Codec codec.CodecType
+}
 type ServerOption struct {
 	Addr        string
 	ClusterName string
@@ -16,16 +19,17 @@ type ServerOption struct {
 	Rotator  *Rotator
 	LogLevel string
 
-	Codec codec.CodecType
+	JsonRpcOpt *JsonRpcOption
 
-	BeforeRun func() error
-
+	BeforeRun          func() error
 	EnableInnerService bool
 }
 
 const (
-	BuiltInPathJsonRPC = "_jsonrpc_"
-	BuiltInPathJsonWS  = "_ws_"
+	BuiltInPathJsonRPC   = "_jsonrpc_"
+	BuiltInPathWsJsonRPC = "_ws_"
+	BuiltInPathRawWS     = "_raw_ws_"
+
 	BuiltInPathDIR     = "_dir_"
 	BuiltInPathMetrics = "_metrics_"
 )
@@ -36,20 +40,11 @@ type BasicAuth struct {
 }
 
 type ClientOption struct {
-	Codec codec.CodecType
+	JsonRpcOpt *JsonRpcOption
 
-	// auth
+	// http auth
 	Basic *BasicAuth
 
 	// websocket
 	RevChan interface{}
-	// return raw response for subscription because proto of response on some server is not jsonrpc
-	WebSocketMode WebSocketMode
 }
-
-type WebSocketMode int
-
-const (
-	WSM_JsonRpc = iota
-	WSM_RawJson
-)
