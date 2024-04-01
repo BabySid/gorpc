@@ -3,13 +3,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc"
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/codec"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"time"
 )
 
 func main() {
@@ -24,7 +25,6 @@ func main() {
 
 	t := &srv{}
 	s.RegisterPath(http.MethodGet, "/v1/get/:uid", t.getHandle)
-	//s.RegisterPath(http.MethodPost, "/v1/post", t.postHandle)
 	s.RegisterJsonRPC("rpc", &rpcServer{})
 	s.RegisterRawWs(t.rawWsHandle)
 
@@ -54,21 +54,11 @@ func (s *srv) rawWsHandle(ctx api.Context, msg api.WSMessage) error {
 	return nil
 }
 
-func (s *srv) getHandle(ctx api.RawContext, httpBody []byte) {
+func (s *srv) getHandle(ctx api.RawHttpContext, httpBody []byte) {
 	uid := ctx.Param("uid")
 	name := ctx.Query("name")
 	ctx.Log("got uid = %s name = %s", uid, name)
 	_ = ctx.WriteData(200, "text/plain; charset=utf-8", []byte("ok"))
-}
-
-func (s *srv) postHandle(ctx api.Context, httpBody interface{}) *api.JsonRpcResponse {
-	if httpBody != nil {
-		ctx.Log("httpBody %v", httpBody)
-	}
-
-	return api.NewSuccessJsonRpcResponse(ctx.CtxID(), map[string]interface{}{
-		"hello": httpBody,
-	})
 }
 
 type rpcServer struct{}
@@ -98,7 +88,7 @@ func (i *rpcServer) Add3(ctx api.Context, params interface{}) (*Result, *api.Jso
 func (i *rpcServer) Add(ctx api.Context, params *Params) (*Result, *api.JsonRpcError) {
 	a := params.A + params.B
 	result := interface{}(a).(Result)
-	//ctx.Log("Add %v err=%v", result, err)
+	// ctx.Log("Add %v err=%v", result, err)
 	return &result, nil
 }
 
@@ -138,9 +128,7 @@ func (i *rpcServer) Sub(ctx api.Context, params *Params) (*SubResult, *api.JsonR
 				time.Sleep(3 * time.Second)
 				notifier.Notify(api.NewSubscriptionNotice("Sub", "0x5e7c550061dad01c4f59eab18b2e055", SubData{DT: gobase.FormatDateTime()}))
 			}
-
 		}
-
 	}()
 
 	var rs SubResult

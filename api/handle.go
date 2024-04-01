@@ -1,7 +1,7 @@
 package api
 
 // RawHttpHandle is a raw interface for creating api based http
-type RawHttpHandle func(RawContext, []byte)
+type RawHttpHandle func(RawHttpContext, []byte)
 
 // RawWsHandle is a raw interface for creating api based ws
 type RawWsHandle func(Context, WSMessage) error

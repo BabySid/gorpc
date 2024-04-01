@@ -3,6 +3,9 @@ package websocket
 import (
 	"errors"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/internal/jsonrpc"
@@ -10,8 +13,6 @@ import (
 	"github.com/google/uuid"
 	ws "github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
-	"sync"
-	"time"
 )
 
 type Server struct {
@@ -144,7 +145,7 @@ func (s *Server) Close() {
 }
 
 func (s *Server) pingLoop() {
-	var timer = time.NewTimer(wsPingInterval)
+	timer := time.NewTimer(wsPingInterval)
 	defer s.wg.Done()
 	defer timer.Stop()
 
@@ -203,7 +204,7 @@ func (s *Server) read() {
 }
 
 func (s *Server) handleRaw(msg api.WSMessage) error {
-	context := newWSContext("Raw", uuid.New().String(), len(msg.Data), s)
+	context := newWSContext("RawWs", uuid.New().String(), len(msg.Data), s)
 	defer func() {
 		context.EndRequest(api.Success)
 	}()

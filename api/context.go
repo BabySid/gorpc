@@ -8,7 +8,7 @@ type Context interface {
 	Value(key string) (any, bool)
 }
 
-type RawContext interface {
+type RawHttpContext interface {
 	Context
 	Param(key string) string
 	Query(key string) string

@@ -1,12 +1,13 @@
 package http
 
 import (
+	"time"
+
 	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/internal/ctx"
 	"github.com/BabySid/gorpc/metrics"
 	"github.com/gin-gonic/gin"
-	"time"
 )
 
 var _ api.Context = (*Context)(nil)
@@ -37,7 +38,7 @@ func newHttpContext(name string, id interface{}, reqSize int, c *gin.Context) *C
 	return httpCtx
 }
 
-var _ api.RawContext = (*RawContext)(nil)
+var _ api.RawHttpContext = (*RawContext)(nil)
 
 type RawContext struct {
 	Context
