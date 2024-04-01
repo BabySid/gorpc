@@ -27,7 +27,7 @@ type ServerOption struct {
 
 const (
 	BuiltInPathJsonRPC   = "_jsonrpc_"
-	BuiltInPathWsJsonRPC = "_ws_"
+	BuiltInPathWsJsonRPC = "_jsonrpc_ws_"
 	BuiltInPathRawWS     = "_raw_ws_"
 
 	BuiltInPathDIR     = "_dir_"
