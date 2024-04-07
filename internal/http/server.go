@@ -57,7 +57,7 @@ func (s *Server) setUpBuiltInService() {
 		path, err := filepath.Abs(filepath.Dir(os.Args[0]))
 		gobase.True(err == nil)
 		dir := http.Dir(path + "/..")
-		log.Info("init static fs", slog.Any("path", dir))
+		log.DefaultLog.Info("init static fs", slog.Any("path", dir))
 		s.httpServer.StaticFS(api.BuiltInPathDIR, dir)
 
 		appName := filepath.Base(os.Args[0])

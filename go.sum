@@ -39,6 +39,8 @@ github.com/BabySid/gobase v0.0.0-20240407055118-e6053d08f61d h1:b7WAI4nZ2uXmMflk
 github.com/BabySid/gobase v0.0.0-20240407055118-e6053d08f61d/go.mod h1:pORBSCg5b5Oq5kTzsvxGR3J7tRJil2G2kNSOVuQjRy0=
 github.com/BabySid/gobase v0.0.0-20240407055436-02b186e81996 h1:zBtxLHd5GuZJru9SVzSdBBuMb59yWNwaqk2ks+8CBXE=
 github.com/BabySid/gobase v0.0.0-20240407055436-02b186e81996/go.mod h1:pORBSCg5b5Oq5kTzsvxGR3J7tRJil2G2kNSOVuQjRy0=
+github.com/BabySid/gobase v0.0.0-20240407113851-887926ada6cb h1:FHYZxeWZ5C39o6Lpr4kpHlvLfsOf19mMBv6+6pdGISE=
+github.com/BabySid/gobase v0.0.0-20240407113851-887926ada6cb/go.mod h1:pORBSCg5b5Oq5kTzsvxGR3J7tRJil2G2kNSOVuQjRy0=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/PuerkitoBio/goquery v1.8.0 h1:PJTF7AmFCFKk1N6V6jmKfrNH9tV5pNE6lZMkG0gta/U=

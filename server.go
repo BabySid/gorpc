@@ -63,7 +63,7 @@ func (s *Server) Run() error {
 
 	if s.option.BeforeRun != nil {
 		if err := s.option.BeforeRun(); err != nil {
-			log.Warn("run handle failed", slog.Any("err", err))
+			log.DefaultLog.Warn("run handle failed", slog.Any("err", err))
 			return err
 		}
 	}
@@ -93,7 +93,7 @@ func (s *Server) Run() error {
 	s.netFile = fmt.Sprintf("%s.net", filepath.Base(os.Args[0]))
 	_ = os.WriteFile(s.netFile, []byte(ln.Addr().String()), 0o666)
 
-	log.Info("gorpc server begin to run", slog.Any("lnAddr", ln.Addr()), slog.Int("pid", s.pid))
+	log.DefaultLog.Info("gorpc server begin to run", slog.Any("lnAddr", ln.Addr()), slog.Int("pid", s.pid))
 
 	if err = s.mux.Serve(); err != nil {
 		// https://github.com/soheilhy/cmux/issues/39
@@ -121,7 +121,7 @@ func (s *Server) Stop() error {
 			s.mux.Close()
 		}
 
-		log.Info("gorpc server stopped", slog.Int("pid", s.pid))
+		log.DefaultLog.Info("gorpc server stopped", slog.Int("pid", s.pid))
 	})
 
 	return nil

@@ -38,7 +38,7 @@ func newHttpContext(name string, id interface{}, reqSize int, c *gin.Context) *C
 		},
 	}
 
-	httpCtx.Logger = log.OutLogger().With("name", httpCtx.Name, "ctxID", httpCtx.ID, "clientIP", httpCtx.ClientIP())
+	httpCtx.Logger = log.DefaultLog.OutLogger().With("name", httpCtx.Name, "ctxID", httpCtx.ID, "clientIP", httpCtx.ClientIP())
 	httpCtx.Logger.Info("NewHttpContext", slog.Int("reqSize", reqSize))
 	return httpCtx
 }
@@ -64,7 +64,7 @@ func newRawContext(name string, id interface{}, reqSize int, c *gin.Context) *Ra
 			},
 		},
 	}
-	rawCtx.Logger = log.OutLogger().With("name", rawCtx.Name, "ctxID", rawCtx.ID, "clientIP", rawCtx.ClientIP())
+	rawCtx.Logger = log.DefaultLog.OutLogger().With("name", rawCtx.Name, "ctxID", rawCtx.ID, "clientIP", rawCtx.ClientIP())
 	rawCtx.Logger.Info("NewRawContext", slog.Int("reqSize", reqSize))
 	return rawCtx
 }

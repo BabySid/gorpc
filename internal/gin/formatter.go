@@ -14,7 +14,7 @@ func ginLogger() gin.HandlerFunc {
 
 		c.Next()
 
-		log.Info("GIN",
+		log.DefaultLog.Info("[GIN]",
 			slog.String("clientIP", c.ClientIP()),
 			slog.String("method", c.Request.Method),
 			slog.String("proto", c.Request.Proto),

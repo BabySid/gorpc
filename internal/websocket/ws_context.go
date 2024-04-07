@@ -37,7 +37,7 @@ func newWSContext(name string, id interface{}, reqSize int, s *Server) *Context 
 		},
 	}
 
-	wsCtx.Logger = log.OutLogger().With("name", wsCtx.Name, "ctxID", wsCtx.ID, "clientIP", wsCtx.ClientIP())
+	wsCtx.Logger = log.DefaultLog.OutLogger().With("name", wsCtx.Name, "ctxID", wsCtx.ID, "clientIP", wsCtx.ClientIP())
 	wsCtx.Logger.Info("NewWSContext", slog.Int("reqSize", reqSize))
 	return wsCtx
 }

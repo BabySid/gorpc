@@ -101,7 +101,7 @@ func NewServer(ctx *gin.Context, opts ...WsOption) (*Server, error) {
 
 	s.clientIP = ctx.ClientIP()
 
-	log.Info("connect to websocket", slog.String("clientIP", s.clientIP))
+	log.DefaultLog.Info("connect to websocket", slog.String("clientIP", s.clientIP))
 
 	s.wg.Add(1)
 	go s.pingLoop()
@@ -142,7 +142,7 @@ func (s *Server) Close() {
 		s.lastErr = errors.New(fmt.Sprintf("server close from [%s]", s.clientIP))
 	}
 	s.serverErr <- s.lastErr
-	log.Info("close from websocket", slog.String("clientIP", s.clientIP))
+	log.DefaultLog.Info("close from websocket", slog.String("clientIP", s.clientIP))
 }
 
 func (s *Server) pingLoop() {
@@ -153,7 +153,7 @@ func (s *Server) pingLoop() {
 	for {
 		select {
 		case <-s.closeCh:
-			log.Debug("recv closeCh in pingLoop", slog.String("clientIP", s.clientIP))
+			log.DefaultLog.Debug("recv closeCh in pingLoop", slog.String("clientIP", s.clientIP))
 			return
 		case <-s.pingReset:
 			if !timer.Stop() {
@@ -175,10 +175,10 @@ func (s *Server) Run() {
 	for {
 		select {
 		case <-s.closeCh:
-			log.Debug("recv closeCh in Run", slog.String("clientIP", s.clientIP))
+			log.DefaultLog.Debug("recv closeCh in Run", slog.String("clientIP", s.clientIP))
 			return
 		case err := <-s.readErr:
-			log.Debug("recv readErr in Run", slog.String("clientIP", s.clientIP), slog.Any("err", err))
+			log.DefaultLog.Debug("recv readErr in Run", slog.String("clientIP", s.clientIP), slog.Any("err", err))
 			s.lastErr = err
 			return
 		case msg := <-s.readOp:
@@ -196,7 +196,7 @@ func (s *Server) read() {
 	for {
 		typ, data, err := s.conn.ReadMessage()
 		if err != nil {
-			log.Debug("recv readErr in read", slog.String("clientIP", s.clientIP), slog.Any("err", err))
+			log.DefaultLog.Debug("recv readErr in read", slog.String("clientIP", s.clientIP), slog.Any("err", err))
 			s.readErr <- err
 			return
 		}
