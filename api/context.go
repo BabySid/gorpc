@@ -2,7 +2,6 @@ package api
 
 type Context interface {
 	CtxID() interface{}
-	Log(format string, v ...interface{})
 	ClientIP() string
 	WithValue(key string, value any)
 	Value(key string) (any, bool)

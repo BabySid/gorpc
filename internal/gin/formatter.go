@@ -1,24 +1,29 @@
 package gin
 
 import (
-	"fmt"
+	"log/slog"
+	"time"
+
+	"github.com/BabySid/gorpc/internal/log"
 	"github.com/gin-gonic/gin"
 )
 
-const (
-	logDateTimeLayout = "2006-01-02 15:04:05.000"
-)
+func ginLogger() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
 
-var logFormatter = func(param gin.LogFormatterParams) string {
-	return fmt.Sprintf("INFO %s - %s %s %s %s %d %s %d [%s]\n",
-		param.TimeStamp.Format(logDateTimeLayout),
-		param.ClientIP,
-		param.Method,
-		param.Path,
-		param.Request.Proto,
-		param.StatusCode,
-		param.Latency,
-		param.BodySize,
-		param.Request.UserAgent(),
-	)
+		c.Next()
+
+		log.Info("GIN",
+			slog.String("clientIP", c.ClientIP()),
+			slog.String("method", c.Request.Method),
+			slog.String("proto", c.Request.Proto),
+			slog.String("path", c.Request.URL.Path),
+			slog.String("query", c.Request.URL.RawQuery),
+			slog.Int64("contLen", c.Request.ContentLength),
+			slog.String("userAgent", c.Request.UserAgent()),
+			slog.Int("statusCode", c.Writer.Status()),
+			slog.Duration("latency", time.Since(start)),
+		)
+	}
 }

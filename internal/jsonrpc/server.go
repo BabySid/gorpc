@@ -2,13 +2,15 @@ package jsonrpc
 
 import (
 	"errors"
-	"github.com/BabySid/gorpc/api"
-	"github.com/BabySid/gorpc/codec"
-	log "github.com/sirupsen/logrus"
 	"go/token"
+	"log/slog"
 	"reflect"
 	"strings"
 	"sync"
+
+	"github.com/BabySid/gorpc/api"
+	"github.com/BabySid/gorpc/codec"
+	"github.com/BabySid/gorpc/internal/log"
 )
 
 // Precompute the reflect type for error. Can't use error directly
@@ -95,7 +97,7 @@ func suitableMethods(typ reflect.Type) map[string]*methodType {
 		}
 		// Method needs three ins: receiver, ctx, *args.
 		if mType.NumIn() != 3 {
-			log.Warnf("rpc.Register: method %q has %d input parameters; needs exactly three\n", mName, mType.NumIn())
+			log.Warn("rpc.Register failed. number of input needs exactly three", slog.String("methodName", mName), slog.Int("numIn", mType.NumIn()))
 			continue
 		}
 
@@ -105,38 +107,38 @@ func suitableMethods(typ reflect.Type) map[string]*methodType {
 		//	continue
 		//}
 		if ctxType.String() != typeOfAPICtx.String() {
-			log.Warnf("rpc.Register: ctx type of method %q is not %s: %q\n", mName, typeOfAPICtx.String(), ctxType)
+			log.Warn("rpc.Register failed. type of ctx in method must be "+typeOfAPICtx.String(), slog.String("methodName", mName), slog.String("typeOfCtx", ctxType.String()))
 			continue
 		}
 
 		// First arg need not be a pointer.
 		argType := mType.In(2)
 		if !isExportedOrBuiltinType(argType) {
-			log.Warnf("rpc.Register: argument type of method %q is not exported: %q\n", mName, argType)
+			log.Warn("rpc.Register failed. argument type of method must be exported", slog.String("methodName", mName), slog.String("typeOfArg", argType.String()))
 			continue
 		}
 
 		// Method needs two out.
 		if mType.NumOut() != 2 {
-			log.Warnf("rpc.Register: method %q has %d input parameters; needs exactly two\n", mName, mType.NumOut())
+			log.Warn("rpc.Register failed. number of output needs exactly two", slog.String("methodName", mName), slog.Int("numOut", mType.NumIn()))
 			continue
 		}
 
 		// reply must be a pointer.
 		replyType := mType.Out(0)
 		if replyType.Kind() != reflect.Ptr {
-			log.Warnf("rpc.Register: reply type of method %q is not a pointer: %q\n", mName, replyType)
+			log.Warn("rpc.Register failed. reply type[0] of method must be a pointer", slog.String("methodName", mName), slog.String("typeOfReply[0]", replyType.String()))
 			continue
 		}
 		// Reply type must be exported.
 		if !isExportedOrBuiltinType(replyType) {
-			log.Warnf("rpc.Register: reply type of method %q is not exported: %q\n", mName, replyType)
+			log.Warn("rpc.Register failed. reply type[0] of method must be exported", slog.String("methodName", mName), slog.String("typeOfReply[0]", replyType.String()))
 			continue
 		}
 
 		// The return type of the method must be error.
 		if returnType := mType.Out(1); returnType != typeOfRpcError {
-			log.Warnf("rpc.Register: return type of method %q is %q, must be %q\n", mName, returnType, typeOfRpcError.String())
+			log.Warn("rpc.Register failed. reply type[1] of method must be "+typeOfRpcError.String(), slog.String("methodName", mName), slog.String("typeOfReply[1]", returnType.String()))
 			continue
 		}
 		methods[mName] = &methodType{method: method, ArgType: argType, ReplyType: replyType}
@@ -205,7 +207,7 @@ func (server *Server) processRequest(ctx api.Context, req *Message) *api.JsonRpc
 	if rpcErr != nil {
 		return api.NewErrorJsonRpcResponseWithError(req.ID, rpcErr)
 	}
-	ctx.Log("processRequest method[%s] id[%v]", req.Method, string(req.ID))
+	log.Debug("processRequest", slog.String("method", req.Method), slog.String("reqId", string(req.ID)))
 
 	dot := strings.Index(req.Method, ".")
 	if dot < 0 {

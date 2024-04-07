@@ -1,11 +1,13 @@
 package http
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/internal/ctx"
+	"github.com/BabySid/gorpc/internal/log"
 	"github.com/BabySid/gorpc/metrics"
 	"github.com/gin-gonic/gin"
 )
@@ -32,9 +34,12 @@ func newHttpContext(name string, id interface{}, reqSize int, c *gin.Context) *C
 			RevTime: time.Now(),
 			ID:      id,
 			KV:      make(map[string]any),
+			Logger:  nil,
 		},
 	}
-	httpCtx.Log("NewHttpContext: reqSize[%d] clientIP[%s]", reqSize, httpCtx.ClientIP())
+
+	httpCtx.Logger = log.OutLogger().With("name", httpCtx.Name, "ctxID", httpCtx.ID, "clientIP", httpCtx.ClientIP())
+	httpCtx.Logger.Info("NewHttpContext", slog.Int("reqSize", reqSize))
 	return httpCtx
 }
 
@@ -55,10 +60,12 @@ func newRawContext(name string, id interface{}, reqSize int, c *gin.Context) *Ra
 				RevTime: time.Now(),
 				ID:      id,
 				KV:      make(map[string]any),
+				Logger:  nil,
 			},
 		},
 	}
-	rawCtx.Log("NewRawContext: reqSize[%d] clientIP[%s]", reqSize, rawCtx.ClientIP())
+	rawCtx.Logger = log.OutLogger().With("name", rawCtx.Name, "ctxID", rawCtx.ID, "clientIP", rawCtx.ClientIP())
+	rawCtx.Logger.Info("NewRawContext", slog.Int("reqSize", reqSize))
 	return rawCtx
 }
 

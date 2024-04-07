@@ -2,10 +2,11 @@ package ctx
 
 import (
 	"fmt"
+	"log/slog"
+	"time"
+
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/metrics"
-	log "github.com/sirupsen/logrus"
-	"time"
 )
 
 var _ api.Context = (*ContextAdapter)(nil)
@@ -16,10 +17,12 @@ type ContextAdapter struct {
 	ID      interface{}
 
 	KV map[string]any
+
+	Logger *slog.Logger
 }
 
 func (ctx *ContextAdapter) ClientIP() string {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -37,15 +40,10 @@ func (ctx *ContextAdapter) CtxID() interface{} {
 }
 
 func (ctx *ContextAdapter) EndRequest(code int) {
-	ctx.Log("EndRequest %d", code)
+	ctx.Logger.Info("EndRequest", slog.Int("code", code), slog.Int("cost", int(time.Since(ctx.RevTime))))
 
 	metrics.ProcessingRequests.WithLabelValues(metrics.GetCluster(), ctx.Name).Dec()
 	metrics.TotalRequests.WithLabelValues(metrics.GetCluster(), ctx.Name, fmt.Sprintf("%d", code)).Inc()
 	metrics.RequestLatency.WithLabelValues(metrics.GetCluster(), ctx.Name).Observe(float64(time.Since(ctx.RevTime).Milliseconds()))
 	metrics.RealTimeRequestLatency.WithLabelValues(metrics.GetCluster(), ctx.Name).Set(float64(time.Since(ctx.RevTime).Milliseconds()))
-}
-
-func (ctx *ContextAdapter) Log(format string, v ...interface{}) {
-	log.Infof("%s Name[%s] CtxID[%v] CostSince[%v]",
-		fmt.Sprintf(format, v...), ctx.Name, ctx.CtxID(), time.Since(ctx.RevTime))
 }

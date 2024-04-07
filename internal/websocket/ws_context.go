@@ -1,11 +1,14 @@
 package websocket
 
 import (
+	"log/slog"
+	"time"
+
 	"github.com/BabySid/gobase"
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/internal/ctx"
+	"github.com/BabySid/gorpc/internal/log"
 	"github.com/BabySid/gorpc/metrics"
-	"time"
 )
 
 var _ api.Context = (*Context)(nil)
@@ -30,8 +33,11 @@ func newWSContext(name string, id interface{}, reqSize int, s *Server) *Context 
 			RevTime: time.Now(),
 			ID:      id,
 			KV:      make(map[string]any),
+			Logger:  nil,
 		},
 	}
-	wsCtx.Log("NewWSContext: reqSize[%d] clientIP[%s]", reqSize, wsCtx.ClientIP())
+
+	wsCtx.Logger = log.OutLogger().With("name", wsCtx.Name, "ctxID", wsCtx.ID, "clientIP", wsCtx.ClientIP())
+	wsCtx.Logger.Info("NewWSContext", slog.Int("reqSize", reqSize))
 	return wsCtx
 }

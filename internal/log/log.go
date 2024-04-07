@@ -1,48 +1,41 @@
 package log
 
 import (
-	"github.com/BabySid/gorpc/api"
-	logRotator "github.com/lestrrat-go/file-rotatelogs"
-	log "github.com/sirupsen/logrus"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
+	"log/slog"
+
+	"github.com/BabySid/gobase/log"
 )
 
-func InitLog(level string, rotator *api.Rotator) {
-	// because rotate cannot work on windows, so we need a flag to disable it
-	if rotator != nil {
-		maxAge := rotator.LogMaxAge
-		if maxAge <= 0 {
-			maxAge = 24 * 7
-		}
+var logHandler log.Logger
 
-		path := filepath.Join(rotator.LogPath, filepath.Base(os.Args[0])+".log")
-
-		writer, _ := logRotator.New(
-			path+".%Y%m%d%H",
-			logRotator.WithLinkName(path),
-			logRotator.WithMaxAge(time.Duration(maxAge)*time.Hour),
-			logRotator.WithRotationTime(time.Hour),
-		)
-
-		log.SetOutput(writer)
-	}
-
-	log.SetReportCaller(true)
-	log.SetLevel(getLogLevel(level))
-	log.SetFormatter(newFormatter())
+func InitLog(log log.Logger) {
+	logHandler = log
 }
 
-func getLogLevel(lv string) log.Level {
-	level := strings.ToLower(lv)
-	switch level {
-	case "trace":
-		return log.TraceLevel
-	case "debug":
-		return log.DebugLevel
-	default:
-		return log.InfoLevel
-	}
+func Trace(msg string, attrs ...slog.Attr) {
+	logHandler.Trace(msg, attrs...)
+}
+
+func Debug(msg string, attrs ...slog.Attr) {
+	logHandler.Debug(msg, attrs...)
+}
+
+func Info(msg string, attrs ...slog.Attr) {
+	logHandler.Info(msg, attrs...)
+}
+
+func Warn(msg string, attrs ...slog.Attr) {
+	logHandler.Warn(msg, attrs...)
+}
+
+func Error(msg string, attrs ...slog.Attr) {
+	logHandler.Error(msg, attrs...)
+}
+
+func OutLogger() *slog.Logger {
+	return logHandler.OutLogger()
+}
+
+func ErrLogger() *slog.Logger {
+	return logHandler.ErrLogger()
 }

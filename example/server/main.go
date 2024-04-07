@@ -3,22 +3,25 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/BabySid/gobase"
+	"github.com/BabySid/gobase/log"
 	"github.com/BabySid/gorpc"
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/codec"
-	log "github.com/sirupsen/logrus"
 )
 
+var l log.Logger
+
 func main() {
+	l = log.NewSLogger(log.WithOutFile("./server.log"), log.WithLevel("trace"))
 	s := gorpc.NewServer(api.ServerOption{
 		Addr:               ":8888",
 		ClusterName:        "test",
-		Rotator:            nil,
-		LogLevel:           "trace",
+		Logger:             l,
 		JsonRpcOpt:         &api.JsonRpcOption{Codec: codec.JsonCodec},
 		EnableInnerService: true,
 	})
@@ -50,14 +53,15 @@ func (s *srv) rawWsHandle(ctx api.Context, msg api.WSMessage) error {
 		Data: []byte(tmp),
 	})
 
-	ctx.Log("%s => %d %s %v", notifier.ID(), msg.Type, string(msg.Data), err)
+	l.Info("rawWsHandle processed",
+		slog.String("notifier.ID", notifier.ID()), slog.Any("msgType", msg.Type), slog.String("msgData", string(msg.Data)), slog.Any("err", err))
 	return nil
 }
 
 func (s *srv) getHandle(ctx api.RawHttpContext, httpBody []byte) {
 	uid := ctx.Param("uid")
 	name := ctx.Query("name")
-	ctx.Log("got uid = %s name = %s", uid, name)
+	l.Info("getHandle", slog.String("uid", uid), slog.String("name", name))
 	_ = ctx.WriteData(200, "text/plain; charset=utf-8", []byte("ok"))
 }
 
@@ -81,21 +85,22 @@ func (i *rpcServer) Add3(ctx api.Context, params interface{}) (*Result, *api.Jso
 	}
 	a := 100
 	result := interface{}(a).(Result)
-	ctx.Log("Add3 %v params=%v", result, params)
+	l.Info("Add3", slog.Any("params", params), slog.Any("result", result))
+
 	return &result, nil
 }
 
 func (i *rpcServer) Add(ctx api.Context, params *Params) (*Result, *api.JsonRpcError) {
 	a := params.A + params.B
 	result := interface{}(a).(Result)
-	// ctx.Log("Add %v err=%v", result, err)
+	l.Info("Add", slog.Any("result", result))
 	return &result, nil
 }
 
 func (i *rpcServer) Add2(ctx api.Context, params *Params) (*Result2, *api.JsonRpcError) {
 	var result Result2
 	result.C = params.A + params.B
-	ctx.Log("Add2 %v", result)
+	l.Info("Add2", slog.Any("result", result))
 	if result.C%100 == 0 {
 		return nil, api.NewJsonRpcError(-32000, "bad param", errors.New("aha error"))
 	}
@@ -122,7 +127,7 @@ func (i *rpcServer) Sub(ctx api.Context, params *Params) (*SubResult, *api.JsonR
 		for {
 			select {
 			case err := <-notifier.Err():
-				log.Infof("err found: %v", err)
+				l.Warn("recv err", slog.Any("err", err))
 				return
 			default:
 				time.Sleep(3 * time.Second)

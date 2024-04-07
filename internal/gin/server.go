@@ -2,7 +2,6 @@ package gin
 
 import (
 	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
 )
 
 type Server struct {
@@ -14,9 +13,10 @@ func NewServer() *Server {
 
 	s := Server{}
 	s.Engine = gin.New()
-	s.Engine.Use(gin.LoggerWithFormatter(logFormatter))
+	s.Engine.Use(ginLogger())
 	s.Engine.Use(gin.Recovery())
 
-	gin.DefaultWriter = log.StandardLogger().Out
+	// gin.DefaultWriter = io.MultiWriter(log.StandardLogger().Out)
+	// gin.DefaultErrorWriter = io.MultiWriter(log.StandardLogger().Out)
 	return &s
 }

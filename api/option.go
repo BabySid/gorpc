@@ -1,13 +1,9 @@
 package api
 
 import (
+	"github.com/BabySid/gobase/log"
 	"github.com/BabySid/gorpc/codec"
 )
-
-type Rotator struct {
-	LogMaxAge int
-	LogPath   string
-}
 
 type JsonRpcOption struct {
 	Codec codec.CodecType
@@ -15,9 +11,8 @@ type JsonRpcOption struct {
 type ServerOption struct {
 	Addr        string
 	ClusterName string
-	// logs
-	Rotator  *Rotator
-	LogLevel string
+
+	Logger log.Logger
 
 	JsonRpcOpt *JsonRpcOption
 

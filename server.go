@@ -2,20 +2,21 @@ package gorpc
 
 import (
 	"fmt"
-	"github.com/BabySid/gorpc/api"
-	"github.com/BabySid/gorpc/internal/grpc"
-	"github.com/BabySid/gorpc/internal/http"
-	"github.com/BabySid/gorpc/internal/log"
-	"github.com/BabySid/gorpc/metrics"
-	l "github.com/sirupsen/logrus"
-	"github.com/soheilhy/cmux"
-	g "google.golang.org/grpc"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/BabySid/gorpc/api"
+	"github.com/BabySid/gorpc/internal/grpc"
+	"github.com/BabySid/gorpc/internal/http"
+	"github.com/BabySid/gorpc/internal/log"
+	"github.com/BabySid/gorpc/metrics"
+	"github.com/soheilhy/cmux"
+	g "google.golang.org/grpc"
 )
 
 type Server struct {
@@ -26,11 +27,12 @@ type Server struct {
 	mux  cmux.CMux
 
 	pidFile string
+	pid     int
 	netFile string
 }
 
 func NewServer(opt api.ServerOption) *Server {
-	log.InitLog(opt.LogLevel, opt.Rotator)
+	log.InitLog(opt.Logger)
 
 	s := &Server{
 		option: opt,
@@ -61,7 +63,7 @@ func (s *Server) Run() error {
 
 	if s.option.BeforeRun != nil {
 		if err := s.option.BeforeRun(); err != nil {
-			l.Warnf("run handle failed. err: %v", err)
+			log.Warn("run handle failed", slog.Any("err", err))
 			return err
 		}
 	}
@@ -85,12 +87,13 @@ func (s *Server) Run() error {
 	}()
 
 	s.pidFile = fmt.Sprintf("%s.pid", filepath.Base(os.Args[0]))
-	_ = os.WriteFile(s.pidFile, []byte(strconv.Itoa(os.Getpid())), 0666)
+	s.pid = os.Getpid()
+	_ = os.WriteFile(s.pidFile, []byte(strconv.Itoa(s.pid)), 0o666)
 
 	s.netFile = fmt.Sprintf("%s.net", filepath.Base(os.Args[0]))
-	_ = os.WriteFile(s.netFile, []byte(ln.Addr().String()), 0666)
+	_ = os.WriteFile(s.netFile, []byte(ln.Addr().String()), 0o666)
 
-	l.Infof("gorpc server run on %s", ln.Addr())
+	log.Info("gorpc server begin to run", slog.Any("lnAddr", ln.Addr()), slog.Int("pid", s.pid))
 
 	if err = s.mux.Serve(); err != nil {
 		// https://github.com/soheilhy/cmux/issues/39
@@ -104,9 +107,7 @@ func (s *Server) Run() error {
 	return nil
 }
 
-var (
-	stopOnce sync.Once
-)
+var stopOnce sync.Once
 
 func (s *Server) Stop() error {
 	stopOnce.Do(func() {
@@ -119,6 +120,8 @@ func (s *Server) Stop() error {
 		if s.mux != nil {
 			s.mux.Close()
 		}
+
+		log.Info("gorpc server stopped", slog.Int("pid", s.pid))
 	})
 
 	return nil

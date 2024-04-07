@@ -3,21 +3,23 @@ package http
 import (
 	"errors"
 	"fmt"
-	"github.com/BabySid/gobase"
-	"github.com/BabySid/gorpc/api"
-	"github.com/BabySid/gorpc/internal/gin"
-	"github.com/BabySid/gorpc/internal/jsonrpc"
-	"github.com/BabySid/gorpc/internal/websocket"
-	g "github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	log "github.com/sirupsen/logrus"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/BabySid/gobase"
+	"github.com/BabySid/gorpc/api"
+	"github.com/BabySid/gorpc/internal/gin"
+	"github.com/BabySid/gorpc/internal/jsonrpc"
+	"github.com/BabySid/gorpc/internal/log"
+	"github.com/BabySid/gorpc/internal/websocket"
+	g "github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Server struct {
@@ -55,7 +57,7 @@ func (s *Server) setUpBuiltInService() {
 		path, err := filepath.Abs(filepath.Dir(os.Args[0]))
 		gobase.True(err == nil)
 		dir := http.Dir(path + "/..")
-		log.Infof("set static fs to %s", dir)
+		log.Info("init static fs", slog.Any("path", dir))
 		s.httpServer.StaticFS(api.BuiltInPathDIR, dir)
 
 		appName := filepath.Base(os.Args[0])
@@ -106,9 +108,7 @@ func (s *Server) RegisterPath(httpMethod string, path string, handle api.RawHttp
 	return nil
 }
 
-var (
-	invalidPath = errors.New("path is invalid. conflict with builtin")
-)
+var invalidPath = errors.New("path is invalid. conflict with builtin")
 
 func (s *Server) checkPath(path string) error {
 	rootPath := ""
