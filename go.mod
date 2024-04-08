@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.3
 
 require (
-	github.com/BabySid/gobase v0.0.0-20240407055436-02b186e81996
+	github.com/BabySid/gobase v0.0.0-20240408060614-9bdaa2934c58
 	github.com/gin-gonic/gin v1.8.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.5.0

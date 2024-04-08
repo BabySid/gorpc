@@ -19,9 +19,9 @@ var l log.Logger
 func main() {
 	l = log.NewSLogger(log.WithOutFile("./server.log"), log.WithLevel("trace"))
 	s := gorpc.NewServer(api.ServerOption{
-		Addr:               ":8888",
-		ClusterName:        "test",
-		Logger:             l,
+		Addr:        ":8888",
+		ClusterName: "test",
+		// Logger:             l,
 		JsonRpcOpt:         &api.JsonRpcOption{Codec: codec.JsonCodec},
 		EnableInnerService: true,
 	})

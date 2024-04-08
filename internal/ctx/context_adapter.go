@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/BabySid/gobase/log"
 	"github.com/BabySid/gorpc/api"
 	"github.com/BabySid/gorpc/metrics"
 )
@@ -18,7 +19,7 @@ type ContextAdapter struct {
 
 	KV map[string]any
 
-	Logger *slog.Logger
+	Logger log.Logger
 }
 
 func (ctx *ContextAdapter) ClientIP() string {
