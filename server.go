@@ -29,6 +29,8 @@ type Server struct {
 	pidFile string
 	pid     int
 	netFile string
+
+	stopOnce sync.Once
 }
 
 func NewServer(opt api.ServerOption) *Server {
@@ -107,10 +109,9 @@ func (s *Server) Run() error {
 	return nil
 }
 
-var stopOnce sync.Once
-
 func (s *Server) Stop() error {
-	stopOnce.Do(func() {
+	s.stopOnce.Do(func() {
+		log.DefaultLog.Info("gorpc server stopped", slog.Int("pid", s.pid))
 		if s.pidFile != "" {
 			_ = os.Remove(s.pidFile)
 		}
@@ -120,9 +121,6 @@ func (s *Server) Stop() error {
 		if s.mux != nil {
 			s.mux.Close()
 		}
-
-		log.DefaultLog.Info("gorpc server stopped", slog.Int("pid", s.pid))
 	})
-
 	return nil
 }
