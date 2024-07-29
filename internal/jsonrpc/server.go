@@ -242,9 +242,6 @@ func (server *Server) processRequest(ctx api.Context, req *Message) *api.JsonRpc
 		argv = reflect.New(mType.ArgType)
 		argIsValue = true
 	}
-	if argIsValue {
-		argv = argv.Elem()
-	}
 
 	// argv guaranteed to be a pointer now.
 	if req.Params != nil {
@@ -254,6 +251,10 @@ func (server *Server) processRequest(ctx api.Context, req *Message) *api.JsonRpc
 				api.SysCodeMap[api.InvalidParams],
 				err.Error()))
 		}
+	}
+
+	if argIsValue {
+		argv = argv.Elem()
 	}
 
 	//replyValue := reflect.New(mType.ReplyType.Elem())
