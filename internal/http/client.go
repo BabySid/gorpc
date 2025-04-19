@@ -179,4 +179,4 @@ func (c *Client) doPostHttp(url string, msg interface{}) (int, io.ReadCloser, er
 	return resp.StatusCode, resp.Body, nil
 }
 
-func (c *Client) Close() {}
+func (c *Client) Close() error { return nil }
