@@ -2,7 +2,6 @@ package http
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,7 +35,7 @@ func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}
 	gobase.True(c.jsonRpcCli != nil)
 	err := c.jsonRpcCli.Call(result, method, args, func(reqs ...*jsonrpc.Message) ([]*jsonrpc.Message, error) {
 		gobase.True(len(reqs) == 1)
-		code, body, err := c.doPostHttp(c.rawUrl, reqs[0])
+		code, body, err := c.doPostHttp(c.rawUrl, reqs[0], api.WithAcceptAppJsonHeader, api.WithContTypeAppJsonHeader)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +63,7 @@ func (c *Client) BatchCallJsonRpc(b []api.BatchElem) error {
 	gobase.True(c.jsonRpcCli != nil)
 	err := c.jsonRpcCli.BatchCall(b, func(reqs ...*jsonrpc.Message) ([]*jsonrpc.Message, error) {
 		gobase.True(len(reqs) > 0)
-		code, body, err := c.doPostHttp(c.rawUrl, reqs)
+		code, body, err := c.doPostHttp(c.rawUrl, reqs, api.WithAcceptAppJsonHeader, api.WithContTypeAppJsonHeader)
 		if err != nil {
 			return nil, err
 		}
@@ -108,11 +107,11 @@ func Dial(rawUrl string, opt api.ClientOption) (*Client, error) {
 	}
 
 	headers := http.Header{}
-	headers.Set("accept", "application/json")
-	headers.Set("content-type", "application/json")
-	if opt.Basic != nil {
-		auth := base64.StdEncoding.EncodeToString([]byte(opt.Basic.User + ":" + opt.Basic.Passwd))
-		headers.Set("Authorization", "Basic "+auth)
+
+	for key, values := range opt.Heads {
+		for _, value := range values {
+			headers.Add(key, value)
+		}
 	}
 
 	c := &Client{
@@ -142,12 +141,15 @@ func (c *Client) checkHttpError(code int, body io.ReadCloser) error {
 	return nil
 }
 
-func (c *Client) doGetHttp(url string) (int, io.ReadCloser, error) {
+func (c *Client) doGetHttp(url string, opts ...api.WithHttpHeader) (int, io.ReadCloser, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return 0, nil, err
 	}
 	req.Header = c.header.Clone()
+	for _, opt := range opts {
+		opt(req.Header)
+	}
 
 	resp, err := c.httpHandle.Do(req)
 	if err != nil {
@@ -157,7 +159,7 @@ func (c *Client) doGetHttp(url string) (int, io.ReadCloser, error) {
 	return resp.StatusCode, resp.Body, nil
 }
 
-func (c *Client) doPostHttp(url string, msg interface{}) (int, io.ReadCloser, error) {
+func (c *Client) doPostHttp(url string, msg any, opts ...api.WithHttpHeader) (int, io.ReadCloser, error) {
 	body, err := json.Marshal(msg)
 	if err != nil {
 		return 0, nil, err
@@ -170,6 +172,9 @@ func (c *Client) doPostHttp(url string, msg interface{}) (int, io.ReadCloser, er
 	req.ContentLength = int64(len(body))
 	// req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
 	req.Header = c.header.Clone()
+	for _, opt := range opts {
+		opt(req.Header)
+	}
 
 	resp, err := c.httpHandle.Do(req)
 	if err != nil {

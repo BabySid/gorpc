@@ -1,6 +1,9 @@
 package api
 
 import (
+	"encoding/base64"
+	"net/http"
+
 	"github.com/BabySid/gobase/log"
 	"github.com/BabySid/gorpc/codec"
 )
@@ -34,12 +37,36 @@ type BasicAuth struct {
 	Passwd string
 }
 
+func (ba BasicAuth) SetAuthHeader(head http.Header) {
+	auth := base64.StdEncoding.EncodeToString([]byte(ba.User + ":" + ba.Passwd))
+	head.Set("Authorization", "Basic "+auth)
+}
+
 type ClientOption struct {
 	JsonRpcOpt *JsonRpcOption
 
 	// http auth
-	Basic *BasicAuth
+	Heads http.Header
 
 	// websocket
 	RevChan interface{}
 }
+
+type WithHttpHeader func(http.Header)
+
+func ResetHeader(key string, value string) WithHttpHeader {
+	return func(head http.Header) {
+		head.Set(key, value)
+	}
+}
+
+func AppendHeader(key string, value string) WithHttpHeader {
+	return func(head http.Header) {
+		head.Add(key, value)
+	}
+}
+
+var (
+	WithContTypeAppJsonHeader = ResetHeader("Content-Type", "application/json")
+	WithAcceptAppJsonHeader   = ResetHeader("Accept", "application/json")
+)
