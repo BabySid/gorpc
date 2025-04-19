@@ -6,17 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/BabySid/gobase"
-	"github.com/BabySid/gorpc/api"
-	"github.com/BabySid/gorpc/internal/jsonrpc"
 	"io"
 	"net/http"
 	"net/url"
+
+	"github.com/BabySid/gobase"
+	"github.com/BabySid/gorpc/api"
+	"github.com/BabySid/gorpc/internal/jsonrpc"
 )
 
-var (
-	ErrNoResult = errors.New("no result in JSON-RPC response")
-)
+var ErrNoResult = errors.New("no result in JSON-RPC response")
 
 type Client struct {
 	api.ClientAdapter
@@ -169,7 +168,7 @@ func (c *Client) doPostHttp(url string, msg interface{}) (int, io.ReadCloser, er
 		return 0, nil, err
 	}
 	req.ContentLength = int64(len(body))
-	//req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
+	// req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
 	req.Header = c.header.Clone()
 
 	resp, err := c.httpHandle.Do(req)
@@ -179,3 +178,5 @@ func (c *Client) doPostHttp(url string, msg interface{}) (int, io.ReadCloser, er
 
 	return resp.StatusCode, resp.Body, nil
 }
+
+func (c *Client) Close() {}
