@@ -1,9 +1,5 @@
 package api
 
-import (
-	"io"
-)
-
 type ClientType int
 
 const (
@@ -25,11 +21,16 @@ type BatchElem struct {
 	Error error
 }
 
+type HttpResponse struct {
+	StatusCode int
+	Body       []byte
+}
+
 type Client interface {
 	GetType() ClientType
 	CallJsonRpc(result interface{}, method string, args interface{}) error
 	BatchCallJsonRpc(b []BatchElem) error
-	RawCallHttp(method string, path string, body interface{}) (int, io.ReadCloser, error)
+	RawCallHttp(method string, path string, body interface{}) (*HttpResponse, error)
 	Close() error
 
 	// The WriteByWs ending with "WS" are only intended for WebSocket clients
@@ -45,41 +46,41 @@ var _ Client = (*ClientAdapter)(nil)
 type ClientAdapter struct{}
 
 func (c ClientAdapter) ErrFromWS() chan error {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (c ClientAdapter) WriteByWs(WSMessage) error {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (c ClientAdapter) GetType() ClientType {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (c ClientAdapter) CallJsonRpc(result interface{}, method string, args interface{}) error {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (c ClientAdapter) BatchCallJsonRpc(b []BatchElem) error {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
-func (c ClientAdapter) RawCallHttp(method string, path string, body interface{}) (int, io.ReadCloser, error) {
-	//TODO implement me
+func (c ClientAdapter) RawCallHttp(method string, path string, body interface{}) (*HttpResponse, error) {
+	// TODO implement me
 	panic("implement me")
 }
 
 func (c ClientAdapter) UnderlyingHandle() interface{} {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (c ClientAdapter) Close() error {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }

@@ -35,26 +35,20 @@ func (c *Client) CallJsonRpc(result interface{}, method string, args interface{}
 	gobase.True(c.jsonRpcCli != nil)
 	err := c.jsonRpcCli.Call(result, method, args, func(reqs ...*jsonrpc.Message) ([]*jsonrpc.Message, error) {
 		gobase.True(len(reqs) == 1)
-		code, body, err := c.doPostHttp(c.rawUrl, reqs[0], api.WithAcceptAppJsonHeader, api.WithContTypeAppJsonHeader)
-		if err != nil {
-			return nil, err
-		}
-		defer body.Close()
-
-		if err = c.checkHttpError(code, body); err != nil {
-			return nil, err
-		}
-
-		data, err := io.ReadAll(body)
+		resp, err := c.doPostHttp(c.rawUrl, reqs[0], api.WithAcceptAppJsonHeader, api.WithContTypeAppJsonHeader)
 		if err != nil {
 			return nil, err
 		}
 
-		var resp jsonrpc.Message
-		if err = json.NewDecoder(bytes.NewReader(data)).Decode(&resp); err != nil {
+		if err = c.checkHttpError(resp); err != nil {
 			return nil, err
 		}
-		return []*jsonrpc.Message{&resp}, nil
+
+		var res jsonrpc.Message
+		if err = json.NewDecoder(bytes.NewReader(resp.Body)).Decode(&res); err != nil {
+			return nil, err
+		}
+		return []*jsonrpc.Message{&res}, nil
 	})
 	return err
 }
@@ -63,22 +57,17 @@ func (c *Client) BatchCallJsonRpc(b []api.BatchElem) error {
 	gobase.True(c.jsonRpcCli != nil)
 	err := c.jsonRpcCli.BatchCall(b, func(reqs ...*jsonrpc.Message) ([]*jsonrpc.Message, error) {
 		gobase.True(len(reqs) > 0)
-		code, body, err := c.doPostHttp(c.rawUrl, reqs, api.WithAcceptAppJsonHeader, api.WithContTypeAppJsonHeader)
+		resp, err := c.doPostHttp(c.rawUrl, reqs, api.WithAcceptAppJsonHeader, api.WithContTypeAppJsonHeader)
 		if err != nil {
 			return nil, err
 		}
-		defer body.Close()
 
-		if err = c.checkHttpError(code, body); err != nil {
+		if err = c.checkHttpError(resp); err != nil {
 			return nil, err
 		}
 
-		data, err := io.ReadAll(body)
-		if err != nil {
-			return nil, err
-		}
 		var resps []*jsonrpc.Message
-		if err = json.NewDecoder(bytes.NewReader(data)).Decode(&resps); err != nil {
+		if err = json.NewDecoder(bytes.NewReader(resp.Body)).Decode(&resps); err != nil {
 			return nil, err
 		}
 		return resps, nil
@@ -87,7 +76,7 @@ func (c *Client) BatchCallJsonRpc(b []api.BatchElem) error {
 	return err
 }
 
-func (c *Client) RawCallHttp(method string, path string, body interface{}) (int, io.ReadCloser, error) {
+func (c *Client) RawCallHttp(method string, path string, body interface{}) (*api.HttpResponse, error) {
 	switch method {
 	case http.MethodGet:
 		return c.doGetHttp(c.rawUrl + path)
@@ -96,8 +85,7 @@ func (c *Client) RawCallHttp(method string, path string, body interface{}) (int,
 	default:
 		gobase.AssertHere()
 	}
-
-	return 0, nil, nil
+	return nil, nil
 }
 
 func Dial(rawUrl string, opt api.ClientOption) (*Client, error) {
@@ -129,22 +117,18 @@ func Dial(rawUrl string, opt api.ClientOption) (*Client, error) {
 	return c, nil
 }
 
-func (c *Client) checkHttpError(code int, body io.ReadCloser) error {
-	if code < http.StatusOK || code >= http.StatusMultipleChoices {
-		bs, err := io.ReadAll(body)
-		if err != nil {
-			return err
-		}
-		return errors.New(fmt.Sprintf("%d:%s", code, string(bs)))
+func (c *Client) checkHttpError(resp *api.HttpResponse) error {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return errors.New(fmt.Sprintf("%d:%s", resp.StatusCode, string(resp.Body)))
 	}
 
 	return nil
 }
 
-func (c *Client) doGetHttp(url string, opts ...api.WithHttpHeader) (int, io.ReadCloser, error) {
+func (c *Client) doGetHttp(url string, opts ...api.WithHttpHeader) (*api.HttpResponse, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
 	req.Header = c.header.Clone()
 	for _, opt := range opts {
@@ -153,21 +137,29 @@ func (c *Client) doGetHttp(url string, opts ...api.WithHttpHeader) (int, io.Read
 
 	resp, err := c.httpHandle.Do(req)
 	if err != nil {
-		return 0, nil, err
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	res := api.HttpResponse{}
+	res.StatusCode = resp.StatusCode
+	res.Body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
 	}
 
-	return resp.StatusCode, resp.Body, nil
+	return &res, nil
 }
 
-func (c *Client) doPostHttp(url string, msg any, opts ...api.WithHttpHeader) (int, io.ReadCloser, error) {
+func (c *Client) doPostHttp(url string, msg any, opts ...api.WithHttpHeader) (*api.HttpResponse, error) {
 	body, err := json.Marshal(msg)
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
 
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
 	req.ContentLength = int64(len(body))
 	// req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
@@ -178,10 +170,17 @@ func (c *Client) doPostHttp(url string, msg any, opts ...api.WithHttpHeader) (in
 
 	resp, err := c.httpHandle.Do(req)
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
+	defer resp.Body.Close()
 
-	return resp.StatusCode, resp.Body, nil
+	res := api.HttpResponse{}
+	res.StatusCode = resp.StatusCode
+	res.Body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
 
 func (c *Client) Close() error { return nil }
